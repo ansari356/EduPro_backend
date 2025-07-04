@@ -1,0 +1,31 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django stuff:
+*.log
+*.pot
+*.pyc
+*.pyo
+*.sqlite3
+db.sqlite3
+media/
+staticfiles/
+.env
+
+# Django migrations (optional)
+**/migrations/
+!**/migrations/__init__.py
+
+# Virtual environment
+venv/
+
+# IDEs and editors
+.vscode/
+.idea/
+
+# Node (لو عندك React لاحقًا)
+node_modules/
+build/
+dist/
