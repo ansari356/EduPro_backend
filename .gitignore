@@ -1,16 +1,4 @@
-# Python
+venv/
 __pycache__/
 *.pyc
-
-# Django
-*.sqlite3
 db.sqlite3
-media/
-staticfiles/
-.env
-
-# Virtualenv
-venv/
-
-# VS Code
-.vscode/
