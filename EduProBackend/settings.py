@@ -35,6 +35,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -47,7 +48,8 @@ INSTALLED_APPS = [
     # third party
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
-     'corsheaders',
+    'corsheaders',
+    'drf_yasg',
 ]
 
 MIDDLEWARE = [
@@ -156,14 +158,14 @@ REST_FRAMEWORK = {
 
 
 
-# JAZZMIN_SETTINGS = {
-#     "site_title": "EduPro",
-#     'site_header' : 'EduPro ',
-#     "site_brand": "EduPrp",
-#     "welcome_sign": "Welcome to EduPro ",
-#     "show_ui_builder": True
+JAZZMIN_SETTINGS = {
+    "site_title": "EduPro",
+    'site_header' : 'EduPro ',
+    "site_brand": "EduPrp",
+    "welcome_sign": "Welcome to EduPro ",
+    "show_ui_builder": True
     
 
-# }
+}
 
 CORS_ALLOW_ALL_ORIGINS = True

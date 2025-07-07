@@ -162,7 +162,7 @@ class StudentProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudentProfile
         fields = ['user','id', 'full_name', 'bio', 'profile_picture', 'teachers', 'date_of_birth', 'address', 'country', 'city', 'number_of_courses', 'number_of_completed_courses','gender']
-        read_only_fields = ['number_of_courses', 'number_of_completed_courses', 'user','teachers']
+        read_only_fields = ['user','number_of_courses', 'number_of_completed_courses','teachers']
         
     def get_teachers(self, obj):
         teacher_profiles = obj.user.teachers.all()
