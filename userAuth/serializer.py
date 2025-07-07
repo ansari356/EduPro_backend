@@ -124,19 +124,20 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
         return user
 
 
-
 class UserInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'first_name', 'last_name', "avatar", 'email']
-    
+        read_only_fields = fields
+ 
+
 class userSerializer(serializers.ModelSerializer):
     student_count = serializers.SerializerMethodField() # لعرض عدد الطلاب المرتبطين بالمدرس
     students = UserInfoSerializer(many=True, read_only=True)  # لعرض معلومات الطلاب المرتبطين بالمدرس
     class Meta:
         model = User
         fields = ['id','first_name', 'last_name', 'email', 'slug', 'phone', 'user_type','students', 'avatar', 'logo', 'is_active', 'created_at', 'last_login', 'student_count']
-        read_only_fields = ['user_type','student_count', 'students']
+        read_only_fields =  fields
     def get_student_count(self, obj):
         if hasattr(obj, 'teacher_profile'):
             return obj.teacher_profile.students.count()
@@ -153,9 +154,7 @@ class userSerializer(serializers.ModelSerializer):
             representation.pop('teacher',None)
         return representation
 
-        
 
-  
 class StudentProfileSerializer(serializers.ModelSerializer):
     user = userSerializer(read_only=True)
     teachers = serializers.SerializerMethodField()  

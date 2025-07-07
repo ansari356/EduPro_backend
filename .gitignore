@@ -1,3 +1,76 @@
-venv/
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtualenv
+env/
+venv/
+ENV/
+.venv/
+env.bak/
+venv.bak/
+
+# Django
+*.log
+*.pot
 *.pyc
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+local_settings.py
+
+# VSCode
+.vscode/
+
+# PyCharm
+.idea/
+*.iml
+
+# MacOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Migrations (Optional, but be cautious if you ignore these)
+**/migrations/*.py
+!**/migrations/__init__.py
+
+# dotenv
+.env
+.env.*
+
+# Coverage reports
+htmlcov/
+.coverage
+.tox/
+.nox/
+
+# pip
+pip-log.txt
+pip-delete-this-directory.txt
+
+# mypy
+.mypy_cache/
+
+# pytest
+.pytest_cache/
+
+# celery beat schedule file
+celerybeat-schedule
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Node
+node_modules/
+
+# Logs
+*.log
+logs/
+
