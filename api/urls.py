@@ -1,5 +1,7 @@
 from django.urls import path
 from userAuth import views as user_views
+from .views import LoginView, LogoutView,CookieTokenRefreshView
+
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -17,5 +19,8 @@ urlpatterns = [
     path('teacher/teacher-profile/',user_views.GetTeacherProfileAPIView.as_view(),name='teacher-profile'),
     path('teacher/update-profile/', user_views.UpdateTeacherProfileAPIView.as_view(), name='update-teacher-profile'),
     
-    
+    # login paths
+    path('login/', LoginView.as_view()),
+    path('logout/', LogoutView.as_view()),
+    path('token/refresh/', CookieTokenRefreshView.as_view(), name='cookie_token_refresh'),
 ]
