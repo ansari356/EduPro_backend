@@ -11,7 +11,7 @@ urlpatterns = [
 
 
     
-    path('student/student-register/',user_views.RegisterStudentAPIView.as_view(), name='student_register'),
+    path('student/student-register/<teacherusername>',user_views.RegisterStudentAPIView.as_view(), name='student_register'),
     path('student/student-profile/',user_views.GetStudentProfileAPIView.as_view(),name='student-profile'),
     path('student/update-profile/', user_views.UpdateStudentProfileAPIView.as_view(), name='update-student-profile'),
     

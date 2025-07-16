@@ -45,6 +45,7 @@ class RegisterStudentAPIView(generics.CreateAPIView):
                 "id": student.id,
                 "email": student.email,
                 "phone": student.phone,
+                "parent_phone":student.parent_phone,
                 'username': student.username,
                 "user_type": student.user_type,
                 'slug': student.slug,
@@ -72,7 +73,7 @@ class GetTeacherProfileAPIView(generics.RetrieveAPIView):
     def get_object(self):
         user = self.request.user
         if user.user_type == User.userType.TEACHER:
-            return get_object_or_404(TeacherProfile.objects.select_related('user'),user=user)
+            return get_object_or_404(TeacherProfile.objects.select_related('user').prefetch_related('students'),user=user)
         else:
             raise PermissionDenied("You are not a Teacher.")
         

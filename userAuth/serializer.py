@@ -64,14 +64,21 @@ class RegisterSerializer(serializers.ModelSerializer):
 class StudentRegistrationSerializer(serializers.ModelSerializer):
     password1 = serializers.CharField(write_only=True,required=True,validators=[validate_password])
     password2 = serializers.CharField(write_only=True,required=True)
+    parent_phone = serializers.CharField(required = False,allow_null=True , allow_blank=True)
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'email', 'username', 'phone', 'password1', 'password2', 'avatar']
+        fields = ['first_name', 'last_name', 'email', 'username', 'phone', 'parent_phone', 'password1', 'password2', 'avatar']
     
     
     def validate(self, attrs):
             if attrs.get('password1') != attrs.get('password2'):
                 raise serializers.ValidationError({'password': "Passwords don't match"})
+            
+            if not attrs.get('parent_phone'):
+                raise serializers.ValidationError(
+                    {"parent_phone": "Parent phone is required for students."}
+                )
+
             return attrs
     
     
@@ -92,11 +99,21 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('User type must be student')
         return value
     
-    def create(self, validated_data):
-        teacher = self.context['request'].user
 
         
-        if teacher.user_type != User.userType.TEACHER:
+        
+    
+    def create(self, validated_data):
+    
+        username = self.context.get('view').kwargs.get('teacherusername')
+    
+        if not username:
+            raise serializers.ValidationError({'teacher': 'Teacher username is required.'})
+        
+        teacher = User.objects.filter(user_type=User.userType.TEACHER, username=username).first()
+
+        print(username)
+        if not teacher:
             raise serializers.ValidationError({'teacher': 'User is not a teacher'})
         
         password1 = validated_data.pop('password1', None)
@@ -108,6 +125,7 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
             email=validated_data.get('email'),
             username=validated_data.get('username'),
             phone=validated_data.get('phone'),
+            parent_phone=validated_data.get('parent_phone'),
             user_type= User.userType.STUDENT, 
             avatar=validated_data.get('avatar', ''),
         )
