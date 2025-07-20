@@ -85,18 +85,25 @@ AUTH_USER_MODEL = 'userAuth.User'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('Name'),
-        'USER':config('User'),
-        'PASSWORD':config('Password'),
-        'HOST':config('Host'),
-        'PORT':config('Port',cast=int),
-        'HOST':config('Host')
+if DEBUG:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('Name'),
+            'USER':config('User'),
+            'PASSWORD':config('Password'),
+            'HOST':config('Host'),
+            'PORT':config('Port',cast=int),
+            'HOST':config('Host')
+        }
+    }
 
 
 # Password validation
@@ -154,6 +161,9 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'api.authentication.CookieJWTAuthentication',
     ),
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
 }
 
 SIMPLE_JWT = {
