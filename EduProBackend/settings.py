@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     # apps
     'userAuth',
     'api',
+    'course',
     
     # third party
     'rest_framework',
