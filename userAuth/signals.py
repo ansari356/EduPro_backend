@@ -10,4 +10,3 @@ def create_user_profile(sender,instance,created, **kwargs):
             TeacherProfile.objects.create(user=instance)
         if instance.user_type == User.userType.STUDENT:
             StudentProfile.objects.create(user=instance)
-            
