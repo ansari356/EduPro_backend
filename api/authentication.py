@@ -5,9 +5,7 @@ from rest_framework_simplejwt.exceptions import InvalidToken
 
 class CookieJWTAuthentication(JWTAuthentication):
     def authenticate(self, request):
-        # Check if the view has AllowAny permission
-        # if hasattr(request.resolver_match.func, 'cls') and any(isinstance(p, AllowAny) for p in request.resolver_match.func.cls.permission_classes):
-        #     return None
+
 
         raw_token = request.COOKIES.get('access_token')
         if raw_token is None:
