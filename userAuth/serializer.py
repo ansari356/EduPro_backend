@@ -112,7 +112,6 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
         
         teacher = User.objects.filter(user_type=User.userType.TEACHER, username=username).first()
 
-        print(username)
         if not teacher:
             raise serializers.ValidationError({'teacher': 'User is not a teacher'})
         
