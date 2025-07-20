@@ -196,3 +196,15 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ['number_of_students', 'students' , 'rating','user','number_of_courses']
 
 
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        email = attrs.get('email')
+        password = attrs.get('password')
+
+        if not email or not password:
+            raise serializers.ValidationError("Email and password are required.")
+
+        return attrs
