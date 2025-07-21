@@ -13,7 +13,7 @@ class User(AbstractUser):
     email = models.EmailField(unique=True)
     first_name = models.CharField(max_length=30)
     last_name = models.CharField(max_length=30,)
-    username = models.CharField(max_length=20,unique=True,)
+    username = models.CharField(max_length=20)
     phone = models.CharField(max_length=15,unique=True)
     parent_phone = models.CharField(max_length=15, blank=True , null=True)
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
