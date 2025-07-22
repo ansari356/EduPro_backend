@@ -34,6 +34,11 @@ class RegisterAPIView(generics.CreateAPIView):
 class RegisterStudentAPIView(generics.CreateAPIView):
     serializer_class = StudentRegistrationSerializer
     permission_classes = [AllowAny] 
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['view'] = self
+        return context
     
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -57,8 +62,8 @@ class GetStudentProfileAPIView(generics.RetrieveAPIView):
     serializer_class = StudentProfileSerializer
     permission_classes = [IsAuthenticated]
     
-    def get_object(self):
-        user = self.request.user
+    def get_object(self) -> StudentProfile:
+        user: User = self.request.user
         if user.user_type == User.userType.STUDENT:
             return get_object_or_404(StudentProfile.objects.select_related('user'),user=user)
         else:
@@ -70,8 +75,8 @@ class GetTeacherProfileAPIView(generics.RetrieveAPIView):
     serializer_class = TeacherProfileSerializer
     permission_classes = [IsAuthenticated]
     
-    def get_object(self):
-        user = self.request.user
+    def get_object(self) -> TeacherProfile:
+        user: User = self.request.user
         if user.user_type == User.userType.TEACHER:
             return get_object_or_404(TeacherProfile.objects.select_related('user').prefetch_related('students'),user=user)
         else:
@@ -82,8 +87,8 @@ class UpdateStudentProfileAPIView(generics.UpdateAPIView):
     serializer_class = StudentProfileSerializer
     permission_classes = [IsAuthenticated]
     
-    def get_object(self):
-        user = self.request.user
+    def get_object(self) -> StudentProfile:
+        user: User = self.request.user
         if user.user_type == User.userType.STUDENT:
             return get_object_or_404(StudentProfile.objects.select_related('user'), user=user)
         else:
@@ -96,8 +101,8 @@ class UpdateTeacherProfileAPIView(generics.UpdateAPIView):
     serializer_class = TeacherProfileSerializer
     permission_classes = [IsAuthenticated]
 
-    def get_object(self):
-        user = self.request.user
+    def get_object(self) -> TeacherProfile:
+        user: User = self.request.user
         if user.user_type == User.userType.TEACHER:
             return get_object_or_404(TeacherProfile.objects.select_related('user'), user=user)
         else:

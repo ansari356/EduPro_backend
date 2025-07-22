@@ -39,25 +39,14 @@ class RegisterSerializer(serializers.ModelSerializer):
     
     
     def create(self, validated_data):
-        password1 = validated_data.pop('password1',None)
-        validated_data.pop('password2',None)
-        logo = validated_data.pop('logo', None)
-        user = User(
-            first_name = validated_data.get('first_name'),
-            last_name = validated_data.get('last_name'),
-            email = validated_data.get('email'),
-            username=validated_data.get('username'),
-            phone=validated_data.get('phone'),
-            user_type=User.userType.TEACHER,
-            avatar = validated_data.get('avatar', ''),
-           
+        validated_data.pop('password2')
+        password = validated_data.pop('password1')
+        
+        user = User.objects.create_user(
+            **validated_data,
+            password=password,
+            user_type=User.userType.TEACHER
         )
-        if user.user_type == User.userType.TEACHER and logo:
-            user.logo = logo
-            
-        if password1:
-            user.set_password(password1)
-        user.save()
         return user
 
 
@@ -115,23 +104,15 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
         if not teacher:
             raise serializers.ValidationError({'teacher': 'User is not a teacher'})
         
-        password1 = validated_data.pop('password1', None)
-        validated_data.pop('password2', None)
-        
-        user = User(
-            first_name=validated_data.get('first_name'),
-            last_name=validated_data.get('last_name'),
-            email=validated_data.get('email'),
-            username=validated_data.get('username'),
-            phone=validated_data.get('phone'),
-            parent_phone=validated_data.get('parent_phone'),
-            user_type= User.userType.STUDENT, 
-            avatar=validated_data.get('avatar', ''),
+        validated_data.pop('password2')
+        password = validated_data.pop('password1')
+
+        user = User.objects.create_user(
+            **validated_data,
+            password=password,
+            user_type=User.userType.STUDENT
         )
-        
-        if password1:
-            user.set_password(password1)
-        user.save()
+
         try:
             teacher_profile = TeacherProfile.objects.get(user=teacher)
             teacher_profile.students.add(user)
