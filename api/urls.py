@@ -29,9 +29,18 @@ urlpatterns = [
     # courses endpoint
     path('course/category/create/', course_views.CourseCategoryCreateAPIView.as_view(), name='course-category-create'),
     path('course/category/list/', course_views.CourseCategoryListAPIView.as_view(), name='course-category-list'),
-    path('course/create/', course_views.courseCreateAPIView.as_view(), name='course-create'),
-    path('course/list',course_views.CourseListAPIView.as_view(),name='course-list'),
-    
+    path('course/create/', course_views.CourseCreateAPIView.as_view(), name='course-create'),
+    path('course/list/',course_views.CourseListAPIView.as_view(),name='course-list'),
+    path('course/update/<course_id>',course_views.CourseUpdateAPIView.as_view(),name='course-update'),
+    path('course/course-delete/<course_id>',course_views.CourseDeleteAPIView.as_view(),name='course-delete'),
+    path('course/course-enrollment/',course_views.CourseEnrollmentAPIView.as_view(),name='course-enrollmnebt'),
+    path('course/course-enrollment-list/',course_views.CourseEnrollmentListAPIView.as_view(),name='course-enrollmnebt-list'),
+    path('course/course-enrollment-delete/<course_id>/<enrollment_id>',course_views.CourseEnrollmentDeletAPIView.as_view(),name='course-enrollmnebt-delete'),
+    path('course/course-search-filter/',course_views.CoursesFilterSerachAPIView.as_view(),name='course-search-filter'),
     # CuponEndpoints
-    path('coupon/create/', course_views.CouponCreateAPIView.as_view(), name='coupon-create'),    
+    path('coupon/create/', course_views.CouponCreateAPIView.as_view(), name='coupon-create'),
+    path('coupon/list/', course_views.CouponListAPIView.as_view(), name='coupon-list'), 
+    path('coupon/update/<coupon_id>', course_views.CouponUpdateAPIView.as_view(), name='coupon-update'),
+    path('coupon/delete/<coupon_id>', course_views.CouponDeleteAPIView.as_view(), name='coupon-delete'),     
+        
 ]

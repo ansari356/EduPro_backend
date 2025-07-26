@@ -52,6 +52,8 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'drf_yasg',
+    'django_celery_beat',
+    'django_filters',
 ]
 
 MIDDLEWARE = [
@@ -190,3 +192,19 @@ JAZZMIN_SETTINGS = {
 CORS_ALLOW_ALL_ORIGINS = True
 
 AUTH_USER_MODEL='userAuth.User'
+
+# Celery Configuration
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+
+# Celery Beat Settings
+CELERY_BEAT_SCHEDULE = {
+    'check-expired-coupons': {
+        'task': 'course.tasks.check_expired_coupons',
+        'schedule': 120.0,  
+    },
+}
