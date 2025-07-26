@@ -111,6 +111,7 @@ class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
         coupon_code = validated_data.pop('coupon_code', None)
         student_profile = user.student_profile
 
+
         if not coupon_code:
             raise serializers.ValidationError({'coupon_code': 'Coupon code is required'})
 
