@@ -117,18 +117,18 @@ class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
 
         try:
             with transaction.atomic():
-                # Optimize: Fetch coupon with related course and teacher in one query
+                
                 coupon = Coupon.objects.select_for_update().select_related(
                     'course', 'teacher'
                 ).get(code=coupon_code)
                 
-                course = coupon.course  # Use course from coupon (already fetched)
+                course = coupon.course
                 
                 # Validate course ID matches
                 if str(course.id) != str(course_id):
                     raise serializers.ValidationError({'course': 'Coupon is not valid for this course'})
                 
-                # Consolidated validations
+               
                 now = timezone.now()
                 if coupon.expiration_date and coupon.expiration_date < now:
                     raise serializers.ValidationError({'coupon': 'Coupon has expired'})
@@ -139,11 +139,11 @@ class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
                 if not course.is_published:
                     raise serializers.ValidationError({'course': 'Course is not published'})
                 
-                # Optimize: Check if user is student of teacher using efficient query
+              
                 if not coupon.teacher.students.filter(id=user.id).exists():
                     raise serializers.ValidationError({'user': 'You are not a student of this teacher.'})
                     
-                # Check if already enrolled
+                
                 if CourseEnrollment.objects.filter(student=student_profile, course=course).exists():
                     raise serializers.ValidationError({'student': 'Student already enrolled in this course'})
                 
