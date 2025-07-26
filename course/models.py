@@ -3,6 +3,8 @@ from userAuth.models import  StudentProfile , TeacherProfile
 import uuid
 from django.utils.text import slugify
 from django.utils import timezone
+from django.db.models.functions import Coalesce
+from PIL import Image
 
 # Create your models here.
 
@@ -39,9 +41,6 @@ class Course(models.Model):
         return self.title
 
     
-    
-    
-
 
 class CourseEnrollment(models.Model):
     class EnrollmentStatus(models.TextChoices):
@@ -92,3 +91,106 @@ class Coupon(models.Model):
     def __str__(self):
         return self.code
     
+    
+
+class CourseModule(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='modules')
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
+    image = models.ImageField(upload_to='course_modules/images/', null=True, blank=True)
+    order = models.PositiveIntegerField(default=1)
+    is_published = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    total_lessons = models.PositiveIntegerField(default=0)
+    total_duration = models.PositiveIntegerField(default=0)
+    
+    def __str__(self):
+        return f"{self.course.title} - {self.title}"
+    
+    def update_totals(self):
+        from django.db.models import Sum, Count
+        
+        totals = self.lessons.aggregate(
+            total_lessons=Count('id'),
+            total_duration=Coalesce(Sum('duration'), 0)
+        )
+        
+        self.total_lessons = totals['total_lessons'] or 0
+        self.total_duration = totals['total_duration'] or 0
+        self.save(update_fields=['total_lessons', 'total_duration'])
+        
+    
+    @property
+    def teacher(self):
+        return self.course.teacher
+
+    @property
+    def lessons(self):
+        return self.lessons
+    
+    class Meta:
+        ordering = ['order']
+        unique_together = ('course', 'order')
+    
+    
+    
+    
+class Lesson(models.Model):
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
+    module = models.ForeignKey(CourseModule, on_delete=models.CASCADE, related_name='lessons')
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
+    order = models.PositiveIntegerField(default=1)
+    is_published = models.BooleanField(default=True)
+    is_free = models.BooleanField(default=False)
+    duration = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    # Content fields
+    video = models.FileField(upload_to='lessons/videos/', blank=True, null=True)
+    document = models.FileField(upload_to='lessons/documents/', blank=True, null=True)
+    thumbnail = models.ImageField(upload_to='lessons/thumbnails/', blank=True, null=True)
+    
+    
+    def __str__(self):
+        return f"{self.module.title} - {self.title}"
+    
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        
+        if self.thumbnail:
+            img = Image.open(self.thumbnail.path)
+
+            max_size = (400, 300)   
+            img.thumbnail(max_size)  
+
+            img.save(self.thumbnail.path)
+            
+            self.module.update_totals()
+        
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        self.module.update_totals()
+        
+    def update(self, *args, **kwargs):
+        super().update(*args, **kwargs)
+        
+        if self.thumbnail:
+            img = Image.open(self.thumbnail.path)
+
+            max_size = (400, 300)   
+            img.thumbnail(max_size)  
+
+            img.save(self.thumbnail.path)
+            
+            self.module.update_totals()
+    
+    class Meta:
+        ordering = ['order']
+        unique_together = ('module', 'order')
+        
+    @property
+    def teacher(self):
+        return self.module.course.teacher
