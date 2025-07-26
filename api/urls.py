@@ -32,6 +32,29 @@ urlpatterns = [
     path('course/create/', course_views.courseCreateAPIView.as_view(), name='course-create'),
     path('course/list',course_views.CourseListAPIView.as_view(),name='course-list'),
     
+    # course module
+    
+    # Course Modules ( under course require(course_id))
+    path('courses/<uuid:course_id>/modules/', course_views.CourseModuleListView.as_view(), name='course-modules-list'),            # GET: list modules
+    path('courses/<uuid:course_id>/modules/create/', course_views.CourseModuleCreateView.as_view(), name='course-module-create'),  # POST: create module
+    
+    # Single Module (detail / update / delete) - based on module_id only
+    path('modules/<uuid:module_id>/', course_views.CourseModuleDetailView.as_view(), name='course-module-detail'),                 # GET: retrieve
+    path('modules/<uuid:module_id>/update/', course_views.CourseModuleUpdateView.as_view(), name='course-module-update'),          # PUT/PATCH: update
+    path('modules/<uuid:module_id>/delete/', course_views.CourseModuleDeleteView.as_view(), name='course-module-delete'),          # DELETE: delete
+    
+    # cousre lesson
+    
+    # Course Module Lessons ( under module require(module_id))
+    path('modules/<uuid:module_id>/lessons/', course_views.LessonListView.as_view(), name='lesson-list'),             # GET: list lessons in a module
+    path('modules/<uuid:module_id>/lessons/create/', course_views.LessonCreateView.as_view(), name='lesson-create'), # POST: create lesson in module
+    
+    # Single Lesson actions (using lesson id)
+    path('lessons/<uuid:id>/', course_views.LessonDetailView.as_view(), name='lesson-detail'),             # GET: retrieve lesson
+    path('lessons/<uuid:id>/update/', course_views.LessonUpdateView.as_view(), name='lesson-update'),      # PUT/PATCH: update lesson
+    path('lessons/<uuid:id>/delete/', course_views.LessonDeleteView.as_view(), name='lesson-delete'),      # DELETE: delete lesson
+    
+    
     # CuponEndpoints
     path('coupon/create/', course_views.CouponCreateAPIView.as_view(), name='coupon-create'),    
 ]

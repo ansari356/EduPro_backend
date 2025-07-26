@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CourseCategory, Course, CourseEnrollment , Coupon
+from .models import CourseCategory, Course, CourseEnrollment , Coupon,CourseModule,Lesson
 
 # Register your models here.
 
@@ -19,6 +19,8 @@ class CourseAdmin(admin.ModelAdmin):
 
 admin.site.register(Course, CourseAdmin)
 
+admin.site.register(CourseEnrollment)
+
 
 class CouponAdmin(admin.ModelAdmin):
     list_display = ('code', 'teacher', 'course', 'status', 'max_uses', 'expiration_date')
@@ -27,3 +29,18 @@ class CouponAdmin(admin.ModelAdmin):
     raw_id_fields = ('teacher', 'course')
     
 admin.site.register(Coupon, CouponAdmin)
+
+
+
+class CourseModuleAdmin(admin.ModelAdmin):
+    list_display =['id','course','title','description','is_published','created_at','total_lessons','total_duration']
+    list_filter = ('title','course')
+    search_fields = ('title','course')
+    
+admin.site.register(CourseModule, CourseModuleAdmin)
+
+class LessonAdmin(admin.ModelAdmin):
+    list_display =['id','module','title','description','is_published','created_at','is_free','duration']
+    list_filter = ('title','module')
+    search_fields = ('title','module')
+admin.site.register(Lesson, LessonAdmin)
