@@ -6,7 +6,7 @@ CourseCategoryCreateSerializer, CourseSerializer, CourseCreateSerializer,CouponC
 CouponSerializer,
 CourseEnrollmentCreateSerializer,CouesEnrollmentSerializer
 )
-from .permission import IsTeacher , IsStudent
+from .permissions import IsTeacher , IsStudent
 from rest_framework.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter , OrderingFilter
