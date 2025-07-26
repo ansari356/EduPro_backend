@@ -104,6 +104,32 @@ erDiagram
         boolean is_active
         datetime date
     }
+    CourseModule {
+        UUID id PK
+        UUID course_id FK
+        string title
+        text description
+        string image
+        int order
+        boolean is_published
+        datetime created_at
+        int total_lessons
+        int total_duration
+    }
+    Lesson {
+        UUID id PK
+        UUID module_id FK
+        string title
+        text description
+        int order
+        boolean is_published
+        boolean is_free
+        int duration
+        datetime created_at
+        file video
+        file document
+        image thumbnail
+    }
 
     User ||--o{ StudentProfile : "has"
     User ||--o{ TeacherProfile : "has"
@@ -115,3 +141,5 @@ erDiagram
     TeacherProfile ||--|{ Coupon : "creates"
     Course ||--|{ Coupon : "has"
     StudentProfile }o--o{ Coupon : "uses"
+    Course ||--|{ CourseModule : "has"
+    CourseModule ||--|{ Lesson : "has"
