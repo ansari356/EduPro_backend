@@ -27,14 +27,3 @@ def check_expired_enrollments():
             enrollment.save(update_fields=['is_active', 'status'])
     
     return "Expired enrollments checked and updated"
-
-# @shared_task
-# def create_coupon_with_expiration(coupon_id):
-#     try:
-#         coupon = Coupon.objects.get(id=coupon_id)
-#         # Set expiration date to 30 days from creation
-#         coupon.expiration_date =  coupon.date + timedelta(days=30)
-#         coupon.save()
-#     except Coupon.DoesNotExist:
-#         return "Coupon not found"
-#     return "Coupon expiration date set successfully"
