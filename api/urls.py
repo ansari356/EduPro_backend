@@ -3,11 +3,6 @@ from userAuth import views as user_views
 from .views import LoginView, LogoutView,CookieTokenRefreshView
 from course import views as course_views
 
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-)
-
 urlpatterns = [
 
 
@@ -29,15 +24,29 @@ urlpatterns = [
     # courses endpoint
     path('course/category/create/', course_views.CourseCategoryCreateAPIView.as_view(), name='course-category-create'),
     path('course/category/list/', course_views.CourseCategoryListAPIView.as_view(), name='course-category-list'),
-    path('course/create/', course_views.courseCreateAPIView.as_view(), name='course-create'),
-    path('course/list',course_views.CourseListAPIView.as_view(),name='course-list'),
+    path('course/create/', course_views.CourseCreateAPIView.as_view(), name='course-create'),
+    path('course/list/',course_views.CourseListAPIView.as_view(),name='course-list'),
+    path('course/course-detail/<course_id>',course_views.CourseDetailAPIView.as_view(),name='course-detail'),
+    path('course/update/<course_id>',course_views.CourseUpdateAPIView.as_view(),name='course-update'),
+    path('course/course-delete/<course_id>',course_views.CourseDeleteAPIView.as_view(),name='course-delete'),
+    path('course/course-enrollment/',course_views.CourseEnrollmentAPIView.as_view(),name='course-enrollmnebt'),
+    path('course/course-enrollment-list/',course_views.CourseEnrollmentListAPIView.as_view(),name='course-enrollmnebt-list'),
+    path('course/course-enrollment-delete/<course_id>/<enrollment_id>',course_views.CourseEnrollmentDeletAPIView.as_view(),name='course-enrollmnebt-delete'),
+    path('course/course-search-filter/',course_views.CoursesFilterSerachAPIView.as_view(),name='course-search-filter'),
+    # CuponEndpoints
+    path('coupon/create/', course_views.CouponCreateAPIView.as_view(), name='coupon-create'),
+    path('coupon/list/', course_views.CouponListAPIView.as_view(), name='coupon-list'), 
+    path('coupon/detail/<coupon_id>', course_views.CouponDetailAPiView.as_view(), name='coupon-detail'),
+    path('coupon/update/<coupon_id>', course_views.CouponUpdateAPIView.as_view(), name='coupon-update'),
+    path('coupon/delete/<coupon_id>', course_views.CouponDeleteAPIView.as_view(), name='coupon-delete'),     
     
-    # course module
+      # course module
     
     # Course Modules ( under course require(course_id))
     path('courses/<uuid:course_id>/modules/', course_views.CourseModuleListView.as_view(), name='course-modules-list'),            # GET: list modules
     path('courses/<uuid:course_id>/modules/create/', course_views.CourseModuleCreateView.as_view(), name='course-module-create'),  # POST: create module
     
+
     # Single Module (detail / update / delete) - based on module_id only
     path('modules/<uuid:module_id>/', course_views.CourseModuleDetailView.as_view(), name='course-module-detail'),                 # GET: retrieve
     path('modules/<uuid:module_id>/update/', course_views.CourseModuleUpdateView.as_view(), name='course-module-update'),          # PUT/PATCH: update
@@ -55,6 +64,4 @@ urlpatterns = [
     path('lessons/<uuid:id>/delete/', course_views.LessonDeleteView.as_view(), name='lesson-delete'),      # DELETE: delete lesson
     
     
-    # CuponEndpoints
-    path('coupon/create/', course_views.CouponCreateAPIView.as_view(), name='coupon-create'),    
 ]

@@ -1,8 +1,9 @@
+from datetime import timedelta
 from django.db import models
 from userAuth.models import  StudentProfile , TeacherProfile
 import uuid
-from django.utils.text import slugify
 from django.utils import timezone
+from .utilis import genrate_coupon_code
 from django.db.models.functions import Coalesce
 from PIL import Image
 
@@ -41,6 +42,9 @@ class Course(models.Model):
         return self.title
 
     
+    
+    
+
 
 class CourseEnrollment(models.Model):
     class EnrollmentStatus(models.TextChoices):
@@ -70,27 +74,53 @@ class CourseEnrollment(models.Model):
     def __str__(self):
         return f'{self.student.user.first_name} enrolled in {self.course.title}'
 
-
+    def save(self, *args, **kwargs):
+        if not self.ended_date:
+            self.ended_date = timezone.now() + timedelta(days=30)
+        super().save(*args, **kwargs)
 
 class Coupon(models.Model):
     class CouponType(models.TextChoices):
         FULL_ACCSESSED = 'full_accessed', 'Full Accessed'
         LIMITED_ACCESS = 'limited_access', 'Limited Access'
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
     teacher = models.ForeignKey(TeacherProfile, on_delete=models.CASCADE)
-    used_by = models.ManyToManyField(StudentProfile, blank=True)
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='coupons')
-    code = models.CharField(max_length=250,unique=True)
+    code = models.CharField(max_length=15, blank=True,unique=True)
     status = models.CharField(max_length=20, choices=CouponType.choices, default=CouponType.FULL_ACCSESSED)
     max_uses = models.PositiveIntegerField(default=1)
     used_count = models.PositiveIntegerField(default=0)
     expiration_date = models.DateTimeField(blank=True, null=True)
     discount = models.IntegerField(default=0 , null=True, blank=True)
-    is_active= models.BooleanField(default=False)
+    is_active= models.BooleanField(default=True)
     date = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
         return self.code
     
+    def save(self, *args, **kwargs):
+        if not self.code:
+            while True:
+                code = genrate_coupon_code(10)
+                if not Coupon.objects.filter(code=code).exists():
+                    self.code = code
+                    break
+        if not self.expiration_date:
+            self.expiration_date = timezone.now() + timedelta(days=30)
+        super().save(*args, **kwargs)
+
+
+class CouponUsage(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
+    coupon = models.ForeignKey(Coupon, on_delete=models.CASCADE, related_name='usages')
+    student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE, related_name='coupon_usages')
+    used_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('coupon', 'student')
+        
+    def __str__(self):
+        return f"{self.student} used {self.coupon.code}"
     
 
 class CourseModule(models.Model):
