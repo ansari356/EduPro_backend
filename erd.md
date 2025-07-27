@@ -51,6 +51,95 @@ erDiagram
         string gender
     }
 
+    CourseCategory {
+        UUID id PK
+        string name UK
+        string description
+        string slug
+        string icon
+    }
+
+    Course {
+        UUID id PK
+        UUID teacher_id FK
+        string title
+        text description
+        string trailer_video
+        decimal price
+        string status
+        boolean is_free
+        UUID category_id FK
+        string slug
+        string thumbnail
+        datetime created_at
+        int total_enrollments
+        int total_lessons
+        int total_reviews
+        decimal average_rating
+        int total_durations
+    }
+
+    CourseEnrollment {
+        UUID id PK
+        UUID student_id FK
+        UUID course_id FK
+        datetime enrollment_date
+        datetime ended_date
+        string status
+        boolean is_completed
+        boolean is_active
+        decimal progress
+    }
+
+    Coupon {
+        UUID id PK
+        UUID teacher_id FK
+        UUID course_id FK
+        string code UK
+        string status
+        int max_uses
+        int used_count
+        datetime expiration_date
+        int discount
+        boolean is_active
+        datetime date
+    }
+    CourseModule {
+        UUID id PK
+        UUID course_id FK
+        string title
+        text description
+        string image
+        int order
+        boolean is_published
+        datetime created_at
+        int total_lessons
+        int total_duration
+    }
+    Lesson {
+        UUID id PK
+        UUID module_id FK
+        string title
+        text description
+        int order
+        boolean is_published
+        boolean is_free
+        int duration
+        datetime created_at
+        file video
+        file document
+        image thumbnail
+    }
+
     User ||--o{ StudentProfile : "has"
     User ||--o{ TeacherProfile : "has"
     TeacherProfile }o--o{ User : "students"
+    TeacherProfile ||--|{ Course : "creates"
+    CourseCategory ||--|{ Course : "categorizes"
+    StudentProfile ||--|{ CourseEnrollment : "enrolls in"
+    Course ||--|{ CourseEnrollment : "is enrolled in"
+    TeacherProfile ||--|{ Coupon : "creates"
+    Course ||--|{ Coupon : "has"
+    StudentProfile }o--o{ Coupon : "uses"
+    Course ||--|{ CourseModule : "has"
+    CourseModule ||--|{ Lesson : "has"
