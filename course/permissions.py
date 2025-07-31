@@ -16,25 +16,19 @@ class IsLessonAccessible(permissions.BasePermission):
             return False
             
         try:
-            lesson = Lesson.objects.get(id=lesson_id)
-            module = lesson.module
-            course = module.course
-            
-            # if teacher owns this course
-            if (request.user.user_type == User.userType.TEACHER and 
-                hasattr(request.user, 'teacher_profile') and
-                course.teacher == request.user.teacher_profile):
+            lesson = Lesson.objects.select_related('module__course__teacher').get(id=lesson_id)
+            course = lesson.module.course
+            user = request.user
+
+            if user.user_type == User.userType.TEACHER and hasattr(user, 'teacher_profile') and course.teacher == user.teacher_profile:
                 return True
             
-            # if student enrolled in this course
-            if (request.user.user_type == User.userType.STUDENT and 
-                hasattr(request.user, 'student_profile')):
-                enrollment = CourseEnrollment.objects.filter(
-                    student=request.user.student_profile,
+            if user.user_type == User.userType.STUDENT and hasattr(user, 'student_profile'):
+                return CourseEnrollment.objects.filter(
+                    student=user.student_profile,
                     course=course,
                     is_active=True,
                 ).exists()
-                return enrollment
             
             return False
             
@@ -57,25 +51,20 @@ class IsModuleAccessible(permissions.BasePermission):
             return False
 
         try:
-            module = CourseModule.objects.get(id=module_id)
+            module = CourseModule.objects.select_related('course__teacher').get(id=module_id)
             course = module.course
             user = request.user
 
-           # is teacher of course
-            if (user.user_type == User.userType.TEACHER and 
-                hasattr(user, 'teacher_profile') and 
-                course.teacher == user.teacher_profile):
+            if user.user_type == User.userType.TEACHER and hasattr(user, 'teacher_profile') and course.teacher == user.teacher_profile:
                 return True
 
-           # is enrolled in course
-            elif (user.user_type == User.userType.STUDENT and hasattr(user, 'student_profile')):
-                enrollment = CourseEnrollment.objects.filter(
+            if user.user_type == User.userType.STUDENT and hasattr(user, 'student_profile'):
+                return CourseEnrollment.objects.filter(
                     student=user.student_profile,
                     course=course,
                     is_active=True,
                     status__in=['active', 'completed']
                 ).exists()
-                return enrollment
 
             return False
 
@@ -89,26 +78,18 @@ class IsModuleOwner(permissions.BasePermission):
     """
 
     def has_permission(self, request, view):
-        if not request.user.is_authenticated:
-            return False
-        
-        
         user = request.user
+        if not user.is_authenticated or user.user_type != User.userType.TEACHER or not hasattr(user, 'teacher_profile'):
+            return False
+
         module_id = view.kwargs.get('module_id')
         lesson_id = view.kwargs.get('id')
 
-        if user.user_type != User.userType.TEACHER or not hasattr(user, 'teacher_profile'):
-            return False
-
         try:
             if module_id:
-                module = CourseModule.objects.get(id=module_id)
-                return module.course.teacher == user.teacher_profile
-
-            elif lesson_id:
-                lesson = Lesson.objects.get(id=lesson_id)
-                return lesson.module.course.teacher == user.teacher_profile
-
+                return CourseModule.objects.filter(id=module_id, course__teacher=user.teacher_profile).exists()
+            if lesson_id:
+                return Lesson.objects.filter(id=lesson_id, module__course__teacher=user.teacher_profile).exists()
         except (CourseModule.DoesNotExist, Lesson.DoesNotExist):
             return False
 
@@ -116,20 +97,12 @@ class IsModuleOwner(permissions.BasePermission):
     
 class IsCourseOwner(permissions.BasePermission):
     def has_permission(self,request, view):
-        if not request.user.is_authenticated:
+        user = request.user
+        if not user.is_authenticated or user.user_type != User.userType.TEACHER or not hasattr(user, 'teacher_profile'):
             return False
         
-        user=request.user
         course_id=view.kwargs.get('course_id')
-        course=get_object_or_404(Course,id=course_id)
-        
-        if user.user_type != User.userType.TEACHER or not hasattr(user, 'teacher_profile'):
-            return False
-        
-        if course.teacher != user.teacher_profile:
-            return False
-        
-        return True
+        return Course.objects.filter(id=course_id, teacher=user.teacher_profile).exists()
 
 class IsTeacher(permissions.BasePermission):
 

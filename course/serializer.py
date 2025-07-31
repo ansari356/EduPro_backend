@@ -139,10 +139,8 @@ class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
                 if not course.is_published:
                     raise serializers.ValidationError({'course': 'Course is not published'})
                 
-              
-                if not coupon.teacher.students.filter(id=user.id).exists():
+                if not coupon.teacher.student_relations.filter(student=student_profile).exists():
                     raise serializers.ValidationError({'user': 'You are not a student of this teacher.'})
-                    
                 
                 if CourseEnrollment.objects.filter(student=student_profile, course=course).exists():
                     raise serializers.ValidationError({'student': 'Student already enrolled in this course'})

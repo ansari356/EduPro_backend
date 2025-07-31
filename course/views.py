@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
 from .permissions import IsLessonAccessible,IsModuleAccessible,IsModuleOwner,IsCourseOwner,IsTeacher , IsStudent
 from userAuth.models import User
-from .models import CourseCategory, Course, CourseEnrollment,Lesson,CourseModule
+from .models import CourseCategory, Course, CourseEnrollment,Lesson,CourseModule , Coupon
 from .serializer import (CourseCategorySerializer,CourseCategoryCreateSerializer, CourseSerializer,
  CourseCreateSerializer,CouponCreateSerializer,CourseModuleListSerializer,LessonDetailSerializer,
 LessonCreateUpdateSerializer,CourseModuleDetailSerializer,CourseModuleCreateSerializer,
@@ -35,8 +35,26 @@ class CourseCategoryListAPIView(generics.ListAPIView):
     serializer_class = CourseCategorySerializer
     permission_classes = [permissions.AllowAny]
     
-    
 
+# class CourseCategoryUpdateAPIView(generics.UpdateAPIView):
+#     serializer_class = CourseCategorySerializer
+#     permission_classes = [permissions.IsAdminUser]
+#     lookup_url_kwarg = 'category_id'
+   
+#     def get_object(self):
+#         category_id = self.kwargs.get('category_id')
+#         category = get_object_or_404(CourseCategory, id=category_id)
+#         return category
+
+
+class CourseCategoryUpdateAPIView(generics.UpdateAPIView):
+    serializer_class = CourseCategorySerializer
+    permission_classes = [permissions.IsAdminUser]
+    queryset = CourseCategory.objects.all()
+    lookup_field = 'id'
+    lookup_url_kwarg = 'category_id'
+
+       
 
 class CourseCreateAPIView(generics.CreateAPIView):
     serializer_class = CourseCreateSerializer
@@ -47,13 +65,21 @@ class CourseCreateAPIView(generics.CreateAPIView):
 class CourseListAPIView(generics.ListAPIView):
     serializer_class = CourseSerializer
     permission_classes = [permissions.AllowAny]
-    
+
+
     def get_queryset(self):
-        user = self.request.user
-        if user.is_authenticated and user.user_type == user.userType.TEACHER:
-            return Course.objects.filter(teacher=user.teacher_profile).select_related('teacher', 'category').order_by('-created_at')
         return Course.objects.filter(is_published=True).select_related('teacher', 'category').order_by('-created_at')
 
+class courselistteacher(generics.ListAPIView):
+    serializer_class = CourseSerializer
+    permission_classes = [IsTeacher]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.user_type == User.userType.TEACHER and hasattr(user, 'teacher_profile'):
+            return Course.objects.filter(teacher=user.teacher_profile).select_related('category').order_by('-created_at')
+        else:
+            return Course.objects.none()
 
 class CourseDetailAPIView(generics.RetrieveAPIView):
     serializer_class = CourseSerializer
@@ -110,6 +136,7 @@ class CouponListAPIView(generics.ListAPIView):
         except Coupon.DoesNotExist:
             return Coupon.objects.none()
 
+
 class CouponDetailAPiView(generics.RetrieveAPIView):
     serializer_class = CouponSerializer
     permission_classes = [IsTeacher]
@@ -156,6 +183,7 @@ class CouponDeleteAPIView(generics.DestroyAPIView):
 class CourseEnrollmentAPIView(generics.CreateAPIView):
     serializer_class = CourseEnrollmentCreateSerializer
     permission_classes = [IsStudent]
+
     
 
       
@@ -165,8 +193,12 @@ class CourseEnrollmentListAPIView(generics.ListAPIView):
     
     def get_queryset(self):
         user = self.request.user
+        teacher_username = self.kwargs.get('teacher_username', None)
         try:
-            return Course.objects.filter(enrollments__student=user.student_profile, enrollments__is_active=True).select_related('teacher', 'category').order_by('-created_at')
+            queryset = Course.objects.filter(enrollments__student=user.student_profile, enrollments__is_active=True)
+            if teacher_username:
+                queryset = queryset.filter(teacher__user__username=teacher_username)
+            return queryset.select_related('teacher', 'category').order_by('-created_at')
         except Course.DoesNotExist:
          return Course.objects.none()
 
@@ -176,34 +208,26 @@ class CourseEnrollmentListAPIView(generics.ListAPIView):
 
 class CourseEnrollmentDeletAPIView(generics.DestroyAPIView):
     serializer_class = CouesEnrollmentSerializer
-    permission_classes = [IsStudent or IsTeacher]  
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
         course_id = self.kwargs.get('course_id')
         user = self.request.user
-        
+        course = get_object_or_404(Course, id=course_id)
 
-        if hasattr(user, 'teacher_profile') and user.teacher_profile:
-            course = get_object_or_404(Course, id=course_id, teacher=user.teacher_profile)
-
+        if user.user_type == User.userType.TEACHER and hasattr(user, 'teacher_profile') and course.teacher == user.teacher_profile:
             enrollment_id = self.kwargs.get('enrollment_id')
-            if enrollment_id:
-                membership = get_object_or_404(CourseEnrollment, id=enrollment_id, course=course)
-                course.total_enrollments-=1
-                course.save(update_fields=['total_enrollments'])
-                return membership
-            else:
+            if not enrollment_id:
                 raise ValidationError({'error': 'Enrollment ID is required for teachers'})
-        
-     
-        elif hasattr(user, 'student_profile') and user.student_profile:
-            course = get_object_or_404(Course, id=course_id)
-            membership =  get_object_or_404(CourseEnrollment, course=course, student=user.student_profile)
-            course.total_enrollments-=1
-            course.save(update_fields=['total_enrollments'])
-            return membership
+            enrollment = get_object_or_404(CourseEnrollment, id=enrollment_id, course=course)
+        elif user.user_type == User.userType.STUDENT and hasattr(user, 'student_profile'):
+            enrollment = get_object_or_404(CourseEnrollment, course=course, student=user.student_profile)
         else:
-            raise ValidationError({'error': 'User must be either a teacher or student'})
+            raise PermissionDenied("You do not have permission to perform this action.")
+
+        course.total_enrollments -= 1
+        course.save(update_fields=['total_enrollments'])
+        return enrollment
     
 
     
@@ -420,4 +444,3 @@ class LessonDeleteView(generics.DestroyAPIView):
         instance = self.get_object()
         self.perform_destroy(instance)
         return Response({"detail": "Lesson deleted successfully."}, status=status.HTTP_200_OK)
-

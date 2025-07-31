@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User , StudentProfile , TeacherProfile
+from .models import User , StudentProfile , TeacherProfile, TeacherStudentProfile
 # Register your models here.
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
@@ -50,3 +50,12 @@ class UserAdmin(BaseUserAdmin):
 
 # admin.site.register(User)
 admin.site.register([StudentProfile,TeacherProfile])
+
+
+@admin.register(TeacherStudentProfile)
+class TeacherStudentProfileAdmin(admin.ModelAdmin):
+    list_display = ('teacher', 'student', 'enrollment_date', 'is_active', 'last_activity')
+    list_filter = ('teacher', 'student', 'is_active')
+    search_fields = ('teacher__user__username', 'student__user__username')
+    readonly_fields = ('enrollment_date', 'last_activity')
+    list_per_page = 20
