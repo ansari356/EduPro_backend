@@ -4,7 +4,7 @@ from .models import CourseCategory, Course, CourseEnrollment , Coupon ,CouponUsa
 # Register your models here.
 
 class CourseCategoryAdmin(admin.ModelAdmin):
-    list_display = ('name',)
+    list_display = ('id','name')
     search_fields = ('name',)
 
 admin.site.register(CourseCategory, CourseCategoryAdmin)

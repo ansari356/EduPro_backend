@@ -84,7 +84,7 @@ class Coupon(models.Model):
         FULL_ACCSESSED = 'full_accessed', 'Full Accessed'
         LIMITED_ACCESS = 'limited_access', 'Limited Access'
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
-    teacher = models.ForeignKey(TeacherProfile, on_delete=models.CASCADE)
+    teacher = models.ForeignKey(TeacherProfile, on_delete=models.CASCADE, related_name='coupons')
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='coupons')
     code = models.CharField(max_length=15, blank=True,unique=True)
     status = models.CharField(max_length=20, choices=CouponType.choices, default=CouponType.FULL_ACCSESSED)

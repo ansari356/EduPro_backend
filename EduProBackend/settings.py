@@ -14,6 +14,7 @@ from pathlib import Path
 from decouple import config
 from datetime import timedelta
 import os
+from celery.schedules import crontab
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -206,5 +207,9 @@ CELERY_BEAT_SCHEDULE = {
     'check-expired-coupons': {
         'task': 'course.tasks.check_expired_coupons',
         'schedule': 120.0,  
+    },
+    'check-expired-enrollments': {
+        'task': 'course.tasks.check_expired_enrollments',
+        'schedule': crontab(hour=0, minute=0),  
     },
 }
