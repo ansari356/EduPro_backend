@@ -1,6 +1,6 @@
 from django.forms import ValidationError
 from django.shortcuts import render , get_object_or_404
-from rest_framework import generics, status # pyright: ignore[reportMissingImports]
+from rest_framework import generics, status 
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny , IsAuthenticated
 from django.core.exceptions import PermissionDenied
@@ -62,58 +62,6 @@ class RegisterStudentAPIView(generics.CreateAPIView):
 
 
 
-# class LoginAndJoinTeacherAPIView(generics.CreateAPIView):
-#     serializer_class = JoinTeacherSerializer
-#     permission_classes = [AllowAny]
-
-#     def create(self, request, *args, **kwargs):
-#         teacher_username = self.kwargs.get('teacher_username')
-        
-#         if not teacher_username:
-#             return Response(
-#                 {'error': 'Teacher username is required in the URL.'},
-#                 status=status.HTTP_400_BAD_REQUEST
-#             )
-        
-#         try:
-#             teacher_user = User.objects.get(
-#                 username=teacher_username,
-#                 user_type=User.userType.TEACHER
-#             )
-#             teacher_profile = teacher_user.teacher_profile
-#         except User.DoesNotExist:
-#             return Response(
-#                 {'error': 'Teacher not found.'},
-#                 status=status.HTTP_404_NOT_FOUND
-#             )
-#         except TeacherProfile.DoesNotExist:
-#             return Response(
-#                 {'error': 'Teacher profile not found.'},
-#                 status=status.HTTP_404_NOT_FOUND
-#             )
-
-#         serializer = self.get_serializer(data=request.data)
-#         serializer.is_valid(raise_exception=True)
-        
-#         student_user = serializer.validated_data['student_user']
-        
-#         student_profile,_ = StudentProfile.objects.get_or_create(user=student_user)
-        
-#         relation, created = TeacherStudentProfile.objects.get_or_create(
-#             teacher=teacher_profile,
-#             student=student_profile
-#         )
-        
-#         if created:
-#             response_data = {
-#                 'success': 'Student joined successfully.',
-#             }
-#             status_code = status.HTTP_201_CREATED
-#         else:
-#             response_data = {'info': 'Student is already associated with this teacher.'}
-#             status_code = status.HTTP_200_OK
-        
-#         return Response(response_data, status=status_code)
 
 
 class AuthenticatedJoinTeacherAPIView(generics.CreateAPIView):
@@ -179,7 +127,7 @@ class GetStudentProfileAPIView(generics.RetrieveAPIView):
         student_profile = get_object_or_404(StudentProfile,user=user)
         teacher_username = self.kwargs.get('teacher_username')
         if not teacher_username:
-            raise ValidationError({'teacher_id': 'teacher id is required'})
+            raise ValidationError({'teacher_id': 'teacher username is required'})
         teacher = get_object_or_404(User, user_type=User.userType.TEACHER,username= teacher_username)
         teacher_profile = get_object_or_404(TeacherProfile , user=teacher)
         return get_object_or_404(TeacherStudentProfile , student=student_profile , teacher=teacher_profile)
@@ -227,22 +175,16 @@ class UpdateTeacherProfileAPIView(generics.UpdateAPIView):
             raise PermissionDenied("You are not a Teacher.")
 
 
-class TeacherStudentRelationDestroyView(generics.DestroyAPIView):
+class RemoveStudentAPIView(generics.DestroyAPIView):
     serializer_class = TeacherStudentProfileSerializer
     permission_classes = [IsTeacher]
-    lookup_field = 'student_id'
-
-    def get_queryset(self):
-        user = self.request.user
-        if user.user_type == User.userType.TEACHER:
-            teacher_profile = get_object_or_404(TeacherProfile, user=user)
-            return TeacherStudentProfile.objects.filter(teacher=teacher_profile)
-        return TeacherStudentProfile.objects.none()
-
+    
     def get_object(self):
-        queryset = self.get_queryset()
-        student_id = self.kwargs.get(self.lookup_field)
-        student_profile = get_object_or_404(StudentProfile, id=student_id)
-        obj = get_object_or_404(queryset, student=student_profile)
-        self.check_object_permissions(self.request, obj)
-        return obj
+        user  = self.request.user
+        teacher = get_object_or_404(TeacherProfile , user=user)
+        student_id = self.kwargs.get('student_id')
+        if not student_id:
+            raise ValidationError({'student_id': 'student id is required'})
+        student = get_object_or_404(User, user_type=User.userType.STUDENT, id=student_id)
+        student_profile = get_object_or_404(StudentProfile , user=student)
+        return get_object_or_404(TeacherStudentProfile , student=student_profile , teacher=teacher)
