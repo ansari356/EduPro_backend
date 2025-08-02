@@ -15,7 +15,7 @@ urlpatterns = [
     path('teacher/teacher-register/',user_views.RegisterAPIView.as_view(), name='teacher_register'),
     path('teacher/teacher-profile/',user_views.GetTeacherProfileAPIView.as_view(),name='teacher-profile'),
     path('teacher/update-profile/', user_views.UpdateTeacherProfileAPIView.as_view(), name='update-teacher-profile'),
-    path('teacher/students/remove/<uuid:student_id>/', user_views.TeacherStudentRelationDestroyView.as_view(), name='teacher-student-remove'),
+    path('teacher/students/remove/<student_id>/', user_views.RemoveStudentAPIView.as_view(), name='teacher-student-remove'),
     
     # login paths
     path('login/', LoginView.as_view()),
