@@ -52,60 +52,41 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class StudentRegistrationSerializer(serializers.ModelSerializer):
-    password1 = serializers.CharField(write_only=True,required=True,validators=[validate_password])
-    password2 = serializers.CharField(write_only=True,required=True)
+    password1 = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    password2 = serializers.CharField(write_only=True, required=True)
     parent_phone = serializers.CharField(required=True)
+
     class Meta:
         model = User
         fields = ['first_name', 'last_name', 'email', 'username', 'phone', 'parent_phone', 'password1', 'password2', 'avatar']
-    
-    
-    def validate(self, attrs):
-            if attrs.get('password1') != attrs.get('password2'):
-                raise serializers.ValidationError({'password': "Passwords don't match"})
-            
-            if not attrs.get('parent_phone'):
-                raise serializers.ValidationError(
-                    {"parent_phone": "Parent phone is required for students."}
-                )
 
-            return attrs
-    
-    
-    def validate_email(self,value):
+    def validate(self, attrs):
+        if attrs['password1'] != attrs['password2']:
+            raise serializers.ValidationError({"password": "Passwords don't match"})
+        return attrs
+
+    def validate_email(self, value):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError('Email already exists')
         return value
-    
-    
-    def validate_phone(self,value):
-        if User.objects.filter(phone=value).exists():
-            raise serializers.ValidationError('phone already exists')
-        return value
-    
-    
-    def validate_user_type(self, value):
-        if value != User.userType.STUDENT:
-            raise serializers.ValidationError('User type must be student')
-        return value
-    
 
-        
-        
+    def validate_phone(self, value):
+        if User.objects.filter(phone=value).exists():
+            raise serializers.ValidationError('Phone already exists')
+        return value
 
     def create(self, validated_data):
-        username = self.context.get('view').kwargs.get('teacher_username')
-
-        if not username:
+        teacher_username = self.context['view'].kwargs.get('teacher_username')
+        if not teacher_username:
             raise serializers.ValidationError({'teacher': 'Teacher username is required.'})
 
         try:
-            teacher = User.objects.get(user_type=User.userType.TEACHER, username=username)
-            teacher_profile = TeacherProfile.objects.get(user=teacher)
-        except User.DoesNotExist:
-            raise serializers.ValidationError({'teacher': 'Teacher with this username does not exist.'})
+            teacher_profile = TeacherProfile.objects.select_related('user').get(
+                user__username=teacher_username, 
+                user__user_type=User.userType.TEACHER
+            )
         except TeacherProfile.DoesNotExist:
-            raise serializers.ValidationError({'teacher': 'Teacher profile not found.'})
+            raise serializers.ValidationError({'teacher': 'Teacher with this username does not exist.'})
 
         validated_data.pop('password2')
         password = validated_data.pop('password1')
@@ -117,11 +98,10 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
                 user_type=User.userType.STUDENT
             )
             
-            student_profile = StudentProfile.objects.get(user=student_user)
-            
+         
             TeacherStudentProfile.objects.create(
                 teacher=teacher_profile,
-                student=student_profile
+                student=student_user.student_profile
             )
 
         return student_user
@@ -130,7 +110,7 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
 class UserInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', "avatar"]
+        fields = ['id', 'first_name', 'last_name', 'email' , 'phone']
         read_only_fields = fields
  
 
@@ -154,18 +134,18 @@ class StudentProfileSerializer(serializers.ModelSerializer):
         
 class TeacherProfileSerializer(serializers.ModelSerializer):
     user = UserInfoSerializer(read_only=True)
-    students = serializers.SerializerMethodField()
+    # students = serializers.SerializerMethodField()
     number_of_students = serializers.SerializerMethodField()
     number_of_courses = serializers.SerializerMethodField()
     class Meta:
         model = TeacherProfile
-        fields = ['user', 'id', 'full_name', 'bio', 'profile_picture', 'date_of_birth', 'address', 'country', 'city', 'number_of_courses', 'specialization', 'institution', 'experiance', 'number_of_students', 'students', 'rating', 'gender','created_at', 'logo', 'theme_color']
-        read_only_fields = ['students', 'rating', 'user', 'number_of_courses', 'number_of_courses']
+        fields = ['user', 'id', 'full_name', 'bio', 'profile_picture', 'date_of_birth', 'address', 'country', 'city', 'number_of_courses', 'specialization', 'institution', 'experiance', 'number_of_students', 'rating', 'gender','created_at', 'logo', 'theme_color']
+        read_only_fields = ['students', 'rating', 'user', 'number_of_courses']
 
-    def get_students(self, obj):
-        relations = TeacherStudentProfile.objects.filter(teacher=obj)
-        student_profiles = [relation.student for relation in relations]
-        return StudentProfileSerializer(student_profiles, many=True).data
+    # def get_students(self, obj):
+    #     relations = TeacherStudentProfile.objects.filter(teacher=obj)
+    #     student_profiles = [relation.student for relation in relations]
+    #     return StudentProfileSerializer(student_profiles, many=True).data
 
     def get_number_of_students(self, obj):
         return obj.student_relations.count()
@@ -221,6 +201,7 @@ class TeacherStudentProfileSerializer(serializers.ModelSerializer):
 
     def get_number_of_enrollment_courses(self, obj):
         return obj.get_number_of_enrollment_courses
+
 
 
 class JoinAuthenticatedStudent(serializers.ModelSerializer):
