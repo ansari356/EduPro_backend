@@ -130,7 +130,7 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
 class UserInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', "avatar"]
+        fields = ['id', 'first_name', 'last_name', 'email' , 'phone']
         read_only_fields = fields
  
 
@@ -154,18 +154,18 @@ class StudentProfileSerializer(serializers.ModelSerializer):
         
 class TeacherProfileSerializer(serializers.ModelSerializer):
     user = UserInfoSerializer(read_only=True)
-    students = serializers.SerializerMethodField()
+    # students = serializers.SerializerMethodField()
     number_of_students = serializers.SerializerMethodField()
     number_of_courses = serializers.SerializerMethodField()
     class Meta:
         model = TeacherProfile
-        fields = ['user', 'id', 'full_name', 'bio', 'profile_picture', 'date_of_birth', 'address', 'country', 'city', 'number_of_courses', 'specialization', 'institution', 'experiance', 'number_of_students', 'students', 'rating', 'gender','created_at', 'logo', 'theme_color']
+        fields = ['user', 'id', 'full_name', 'bio', 'profile_picture', 'date_of_birth', 'address', 'country', 'city', 'number_of_courses', 'specialization', 'institution', 'experiance', 'number_of_students', 'rating', 'gender','created_at', 'logo', 'theme_color']
         read_only_fields = ['students', 'rating', 'user', 'number_of_courses', 'number_of_courses']
 
-    def get_students(self, obj):
-        relations = TeacherStudentProfile.objects.filter(teacher=obj)
-        student_profiles = [relation.student for relation in relations]
-        return StudentProfileSerializer(student_profiles, many=True).data
+    # def get_students(self, obj):
+    #     relations = TeacherStudentProfile.objects.filter(teacher=obj)
+    #     student_profiles = [relation.student for relation in relations]
+    #     return StudentProfileSerializer(student_profiles, many=True).data
 
     def get_number_of_students(self, obj):
         return obj.student_relations.count()
