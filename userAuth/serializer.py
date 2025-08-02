@@ -34,7 +34,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     def validate_user_type(self, value):
         valid_types = [choice[0] for choice in User.userType.choices]
         if value not in valid_types:
-            raise serializers.ValidationError('Invalid user type user_typre must be only(student, teacher, asisstant)')
+            raise serializers.ValidationError('Invalid user type user_type must be only(student, teacher)')
         return value
         
     
@@ -110,18 +110,19 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
         validated_data.pop('password2')
         password = validated_data.pop('password1')
 
-        student_user = User.objects.create_user(
-            **validated_data,
-            password=password,
-            user_type=User.userType.STUDENT
-        )
-        
-        student_profile = StudentProfile.objects.get(user=student_user)
-        
-        TeacherStudentProfile.objects.create(
-            teacher=teacher_profile,
-            student=student_profile
-        )
+        with transaction.atomic():
+            student_user = User.objects.create_user(
+                **validated_data,
+                password=password,
+                user_type=User.userType.STUDENT
+            )
+            
+            student_profile = StudentProfile.objects.get(user=student_user)
+            
+            TeacherStudentProfile.objects.create(
+                teacher=teacher_profile,
+                student=student_profile
+            )
 
         return student_user
 
@@ -141,7 +142,7 @@ class userSerializer(serializers.ModelSerializer):
 
 
 class StudentProfileSerializer(serializers.ModelSerializer):
-    user = UserInfoSerializer(read_only=True)
+    user = userSerializer(read_only=True)
 
 
     class Meta:
@@ -155,11 +156,11 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
     user = UserInfoSerializer(read_only=True)
     students = serializers.SerializerMethodField()
     number_of_students = serializers.SerializerMethodField()
-
+    number_of_courses = serializers.SerializerMethodField()
     class Meta:
         model = TeacherProfile
-        fields = ['user', 'id', 'full_name', 'bio', 'profile_picture', 'date_of_birth', 'address', 'country', 'city', 'number_of_courses', 'specialization', 'experiance', 'number_of_students', 'students', 'rating', 'gender']
-        read_only_fields = ['students', 'rating', 'user', 'number_of_courses']
+        fields = ['user', 'id', 'full_name', 'bio', 'profile_picture', 'date_of_birth', 'address', 'country', 'city', 'number_of_courses', 'specialization', 'institution', 'experiance', 'number_of_students', 'students', 'rating', 'gender','created_at', 'logo', 'theme_color']
+        read_only_fields = ['students', 'rating', 'user', 'number_of_courses', 'number_of_courses']
 
     def get_students(self, obj):
         relations = TeacherStudentProfile.objects.filter(teacher=obj)
@@ -168,6 +169,10 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
 
     def get_number_of_students(self, obj):
         return obj.student_relations.count()
+    
+    
+    def get_number_of_courses(self, obj):
+        return obj.get_number_of_courses
 
 
 class LoginSerializer(serializers.Serializer):
@@ -209,14 +214,17 @@ class JoinTeacherSerializer(serializers.Serializer):
 
 class TeacherStudentProfileSerializer(serializers.ModelSerializer):
     student = StudentProfileSerializer(read_only=True)
+    number_of_enrollment_courses = serializers.SerializerMethodField()
     class Meta:
         model = TeacherStudentProfile
-        fields = ['id', 'student', 'teacher' ,'enrollment_date', 'notes', 'is_active',  'completed_lessons', 'last_activity', 'student_id','number_of_courses', 'number_of_completed_courses']
-        read_only_fields = ['enrollment_date', 'last_activity' , 'teacher','number_of_courses', 'number_of_completed_courses']
+        fields = ['id', 'student' ,'enrollment_date', 'notes', 'is_active',  'completed_lessons', 'last_activity', 'number_of_completed_courses','number_of_enrollment_courses']
+
+    def get_number_of_enrollment_courses(self, obj):
+        return obj.get_number_of_enrollment_courses
 
 
-
-class JoinAuthenticatedStudent(serializers.Serializer):
+class JoinAuthenticatedStudent(serializers.ModelSerializer):
     class Meta:
         model = TeacherStudentProfile
-        read_only_fields = '__all__'
+        fields = ['id', 'teacher', 'student', 'enrollment_date', 'notes', 'is_active', 'completed_lessons', 'last_activity', 'number_of_enrollment_courses', 'number_of_completed_courses']
+        read_only_fields = fields

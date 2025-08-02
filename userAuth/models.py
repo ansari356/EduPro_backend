@@ -4,6 +4,7 @@ import uuid
 from django.utils.text import slugify
 from django.db.models.signals import post_save , post_delete
 from django.dispatch import receiver
+from django.apps import apps
 # Create your models here.
 
 class User(AbstractUser):
@@ -74,7 +75,7 @@ class StudentProfile(models.Model):
     
     @property
     def teachers(self):
-        return self.user.teachers.all()
+        return self.teacher_relations.all()
  
            
 class TeacherProfile(models.Model):
@@ -89,12 +90,14 @@ class TeacherProfile(models.Model):
     city = models.CharField(max_length=100, blank=True, null=True)
     number_of_courses = models.PositiveIntegerField(default=0)
     specialization = models.CharField(max_length=100, blank=True, null=True)
+    institution = models.CharField(max_length=100, blank=True, null=True)
     experiance = models.TextField(blank=True, null=True)
     number_of_students = models.PositiveIntegerField(default=0)
     rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.0 ,null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     gender = models.CharField(max_length=10,null=True, blank=True)
-    
+    logo = models.ImageField(upload_to='logos/', blank=True, null=True)
+    theme_color = models.CharField(max_length=7, blank=True, null=True)
     def __str__(self):
         return f'Teacher Profile of {self.user.first_name} {self.user.last_name}'
     
@@ -117,6 +120,12 @@ class TeacherProfile(models.Model):
         
         super(TeacherProfile, self).save(*args, **kwargs)
         
+    @property
+    def get_number_of_courses(self):
+        Course = apps.get_model('course', 'Course')
+        
+        return Course.objects.filter(teacher=self.user.teacher_profile).count()
+        
         
         
 
@@ -124,7 +133,6 @@ class TeacherStudentProfile(models.Model):
     teacher = models.ForeignKey(TeacherProfile, on_delete=models.CASCADE, related_name='student_relations')
     student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE, related_name='teacher_relations')
     
-    # بيانات خاصة بالعلاقة
     enrollment_date = models.DateField(auto_now_add=True)
     notes = models.TextField(blank=True, null=True)
     is_active = models.BooleanField(default=True) 
@@ -133,7 +141,6 @@ class TeacherStudentProfile(models.Model):
 
     completed_lessons = models.PositiveIntegerField(default=0)
     last_activity = models.DateTimeField(auto_now=True)
-    number_of_courses = models.PositiveIntegerField(default=0)
     number_of_completed_courses = models.PositiveIntegerField(default=0)
     
     class Meta:
@@ -144,3 +151,10 @@ class TeacherStudentProfile(models.Model):
     
     def __str__(self):
         return f"{self.student.user.username} with {self.teacher.user.username}"
+    
+
+    
+
+    @property
+    def get_number_of_enrollment_courses(self):
+        return self.student.enrollments.filter(course__teacher=self.teacher).count()
