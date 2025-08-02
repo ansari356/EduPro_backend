@@ -130,7 +130,7 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
 class UserInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', "avatar"]
+        fields = ['id', 'first_name', 'last_name','email','phone', "avatar"]
         read_only_fields = fields
  
 
