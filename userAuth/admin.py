@@ -4,7 +4,7 @@ from .models import User , StudentProfile , TeacherProfile, TeacherStudentProfil
 # Register your models here.
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ('id', 'username', 'email', 'phone', 'user_type', 'is_active', 'created_at', 'updated_at','last_login')
+    list_display = ('id', 'username', 'email', 'phone', 'user_type', 'is_active', 'created_at', 'updated_at','last_login', 'refresh_token',)
     list_filter = ('user_type', 'is_active', 'is_staff')
     search_fields = ('username', 'email', 'phone')
     ordering = ('-created_at',)
@@ -22,6 +22,7 @@ class UserAdmin(BaseUserAdmin):
                     "parent_phone",
                     "avatar",
                     "logo",
+                   "refresh_token",
                 )
             },
         ),
