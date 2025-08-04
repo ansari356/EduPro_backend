@@ -1,6 +1,6 @@
 from django.urls import path
 from userAuth import views as user_views
-from .views import LoginView, LogoutView,CookieTokenRefreshView
+from .views import LoginView, LogoutView, LoginStudentAPIView , CookieTokenRefreshView
 from course import views as course_views
 
 urlpatterns = [
@@ -16,11 +16,11 @@ urlpatterns = [
     path('teacher/teacher-profile/',user_views.GetTeacherProfileAPIView.as_view(),name='teacher-profile'),
     path('teacher/update-profile/', user_views.UpdateTeacherProfileAPIView.as_view(), name='update-teacher-profile'),
     path('teacher/students/remove/<student_id>/', user_views.RemoveStudentAPIView.as_view(), name='teacher-student-remove'),
-    
+    path('teacher/get_students/',user_views.GetSudentRelatedToTeacherAPIView.as_view(),name="get-students"),
     # login paths
-    path('login/', LoginView.as_view()),
-    # path('teacher/login-and-join/<teacher_username>/', user_views.LoginAndJoinTeacherAPIView.as_view(), name='login-and-join-teacher'),
-    path('teacher/join/<teacher_username>/', user_views.AuthenticatedJoinTeacherAPIView.as_view(), name='authenticated-join-teacher'),
+    path('teacher/login/', LoginView.as_view()),
+    path('student/login/<teacher_username>/', LoginStudentAPIView.as_view(), name='student-login'),
+    path('join-teacher/<teacher_username>/', user_views.AuthenticatedJoinTeacherAPIView.as_view(), name='authenticated-join-teacher'),
     path('logout/', LogoutView.as_view()),
     path('token/refresh/', CookieTokenRefreshView.as_view(), name='cookie_token_refresh'),
     

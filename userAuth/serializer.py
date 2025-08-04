@@ -117,7 +117,7 @@ class UserInfoSerializer(serializers.ModelSerializer):
 class userSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id','first_name', 'last_name', 'email', 'slug', 'phone', 'user_type', 'avatar', 'logo', 'is_active', 'created_at', 'last_login']
+        fields = ['id','first_name', 'last_name', 'email', 'slug', 'phone', 'parent_phone' ,'user_type', 'avatar', 'logo', 'is_active', 'created_at', 'last_login']
         read_only_fields =  fields
 
 
@@ -152,7 +152,28 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
     
     
     def get_number_of_courses(self, obj):
-        return obj.get_number_of_courses
+        # Check if the value was annotated by the view
+        if hasattr(obj, 'courses_count'):
+            return obj.courses_count
+        
+        # Fallback for safety, though it's less efficient.
+        # This should ideally not be hit if views are optimized.
+        from course.models import Course
+        return Course.objects.filter(teacher=obj).count()
+
+
+
+class GetStudentRelatedToTeacherSerializer(serializers.ModelSerializer):
+    students = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TeacherProfile
+        fields = ['students']
+
+    def get_students(self, obj):
+        relations = obj.student_relations.all()
+        student_profiles = [relation.student for relation in relations]
+        return StudentProfileSerializer(student_profiles, many=True).data
 
 
 class LoginSerializer(serializers.Serializer):
@@ -200,12 +221,18 @@ class TeacherStudentProfileSerializer(serializers.ModelSerializer):
         fields = ['id', 'student' ,'enrollment_date', 'notes', 'is_active',  'completed_lessons', 'last_activity', 'number_of_completed_courses','number_of_enrollment_courses']
 
     def get_number_of_enrollment_courses(self, obj):
-        return obj.get_number_of_enrollment_courses
+        # Check if the value was annotated by the view
+        if hasattr(obj, 'enrollment_courses_count'):
+            return obj.enrollment_courses_count
+        
+        # Fallback for safety, though it's less efficient.
+        # This should ideally not be hit if views are optimized.
+        return obj.student.enrollments.filter(course__teacher=obj.teacher).count()
 
 
 
 class JoinAuthenticatedStudent(serializers.ModelSerializer):
     class Meta:
         model = TeacherStudentProfile
-        fields = ['id', 'teacher', 'student', 'enrollment_date', 'notes', 'is_active', 'completed_lessons', 'last_activity', 'number_of_enrollment_courses', 'number_of_completed_courses']
+        fields = ['id', 'teacher', 'student', 'enrollment_date', 'notes', 'is_active', 'completed_lessons', 'last_activity', 'number_of_completed_courses']
         read_only_fields = fields

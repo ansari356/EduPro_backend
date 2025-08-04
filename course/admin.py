@@ -23,7 +23,7 @@ admin.site.register(Course, CourseAdmin)
 
 
 class CouponAdmin(admin.ModelAdmin):
-    list_display = ('id','code', 'teacher', 'course', 'status', 'max_uses', 'expiration_date')
+    list_display = ('id','code', 'teacher', 'course', 'status', 'max_uses', 'used_count', 'expiration_date')
     list_filter = ('status',)
     search_fields = ('code',)
     raw_id_fields = ('teacher', 'course')
