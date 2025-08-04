@@ -2,9 +2,9 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 import uuid
 from django.utils.text import slugify
-from django.db.models.signals import post_save , post_delete
-from django.dispatch import receiver
-from django.apps import apps
+from django.utils import timezone
+from datetime import timedelta
+
 # Create your models here.
 
 class User(AbstractUser):
@@ -27,8 +27,17 @@ class User(AbstractUser):
     updated_at = models.DateTimeField(auto_now=True)
     last_login = models.DateTimeField(null=True, blank=True)
     slug = models.SlugField(max_length=255, unique=True,blank=True, null=True)
+    refresh_token = models.CharField(max_length=255, null=True, blank=True)
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['is_active']),
+            models.Index(fields=['user_type']),
+            models.Index(fields=['refresh_token']),
+            
+        ]
     
     def __str__(self):
         return f'{self.first_name} {self.last_name} ({self.user_type})'
@@ -67,10 +76,6 @@ class StudentProfile(models.Model):
         if not self.full_name:
             if self.user.user_type == User.userType.STUDENT:
                 self.full_name = f'{self.user.first_name} {self.user.last_name}'
-                
-        if not self.profile_picture:
-            if self.user.user_type == User.userType.STUDENT:
-                self.profile_picture = self.user.avatar
         super(StudentProfile, self).save(*args, **kwargs)
     
     @property
@@ -108,10 +113,6 @@ class TeacherProfile(models.Model):
         if not self.full_name:
             if self.user.user_type == User.userType.TEACHER:
                 self.full_name = f'{self.user.first_name} {self.user.last_name}'
-        
-        if not self.profile_picture:
-            if self.user.user_type == User.userType.TEACHER:
-                self.profile_picture = self.user.avatar
                 
         
         if self.user.user_type == User.userType.TEACHER:
@@ -120,11 +121,6 @@ class TeacherProfile(models.Model):
         
         super(TeacherProfile, self).save(*args, **kwargs)
         
-    @property
-    def get_number_of_courses(self):
-        Course = apps.get_model('course', 'Course')
-        
-        return Course.objects.filter(teacher=self.user.teacher_profile).count()
         
         
         
@@ -151,10 +147,3 @@ class TeacherStudentProfile(models.Model):
     
     def __str__(self):
         return f"{self.student.user.username} with {self.teacher.user.username}"
-    
-
-    
-
-    @property
-    def get_number_of_enrollment_courses(self):
-        return self.student.enrollments.filter(course__teacher=self.teacher).count()
