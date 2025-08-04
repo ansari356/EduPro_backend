@@ -1,145 +1,165 @@
 erDiagram
     User {
         UUID id PK
-        string email UK
-        string first_name
-        string last_name
-        string username UK
-        string phone UK
-        string parent_phone
-        string avatar
-        string logo
-        boolean is_active
-        string user_type
-        datetime created_at
-        datetime updated_at
-        datetime last_login
-        string slug UK
+        Email email UK
+        String first_name
+        String last_name
+        String username UK
+        String phone UK
+        String parent_phone
+        String avatar
+        String logo
+        Boolean is_active
+        String user_type
+        DateTime created_at
+        DateTime updated_at
+        DateTime last_login
+        String slug UK
     }
 
     StudentProfile {
         UUID id PK
         UUID user_id FK
-        string full_name
-        text bio
-        string profile_picture
-        date date_of_birth
-        string address
-        string country
-        string city
-        int number_of_courses
-        int number_of_completed_courses
-        string gender
+        String full_name
+        Text bio
+        String profile_picture
+        Date date_of_birth
+        String address
+        String country
+        String city
+        String gender
     }
 
     TeacherProfile {
         UUID id PK
         UUID user_id FK
-        string full_name
-        text bio
-        string profile_picture
-        date date_of_birth
-        string address
-        string country
-        string city
-        int number_of_courses
-        string specialization
-        text experiance
-        int number_of_students
-        decimal rating
-        datetime created_at
-        string gender
+        String full_name
+        Text bio
+        String profile_picture
+        Date date_of_birth
+        String address
+        String country
+        String city
+        Integer number_of_courses
+        String specialization
+        String institution
+        Text experiance
+        Integer number_of_students
+        Decimal rating
+        DateTime created_at
+        String gender
+        String logo
+        String theme_color
+    }
+
+    TeacherStudentProfile {
+        UUID teacher_id FK
+        UUID student_id FK
+        Date enrollment_date
+        Text notes
+        Boolean is_active
+        Integer completed_lessons
+        DateTime last_activity
+        Integer number_of_completed_courses
     }
 
     CourseCategory {
         UUID id PK
-        string name UK
-        string description
-        string slug
-        string icon
+        String name UK
+        String icon
     }
 
     Course {
         UUID id PK
         UUID teacher_id FK
-        string title
-        text description
-        string trailer_video
-        decimal price
-        string status
-        boolean is_free
         UUID category_id FK
-        string slug
-        string thumbnail
-        datetime created_at
-        int total_enrollments
-        int total_lessons
-        int total_reviews
-        decimal average_rating
-        int total_durations
+        String title
+        Text description
+        URL trailer_video
+        Decimal price
+        Boolean is_published
+        Boolean is_free
+        String thumbnail
+        DateTime created_at
+        Integer total_enrollments
+        Integer total_lessons
+        Integer total_reviews
+        Decimal average_rating
+        Integer total_durations
     }
 
     CourseEnrollment {
         UUID id PK
         UUID student_id FK
         UUID course_id FK
-        datetime enrollment_date
-        datetime ended_date
-        string status
-        boolean is_completed
-        boolean is_active
-        decimal progress
+        DateTime enrollment_date
+        DateTime ended_date
+        String status
+        Boolean is_completed
+        Boolean is_active
+        Decimal progress
     }
 
     Coupon {
         UUID id PK
         UUID teacher_id FK
         UUID course_id FK
-        string code UK
-        string status
-        int max_uses
-        int used_count
-        datetime expiration_date
-        int discount
-        boolean is_active
-        datetime date
+        String code UK
+        String status
+        Integer max_uses
+        Integer used_count
+        DateTime expiration_date
+        Integer discount
+        Boolean is_active
+        DateTime date
     }
+
+    CouponUsage {
+        UUID id PK
+        UUID coupon_id FK
+        UUID student_id FK
+        DateTime used_at
+    }
+
     CourseModule {
         UUID id PK
         UUID course_id FK
-        string title
-        text description
-        string image
-        int order
-        boolean is_published
-        datetime created_at
-        int total_lessons
-        int total_duration
+        String title
+        Text description
+        String image
+        Integer order
+        Boolean is_published
+        DateTime created_at
+        Integer total_lessons
+        Integer total_duration
     }
+
     Lesson {
         UUID id PK
         UUID module_id FK
-        string title
-        text description
-        int order
-        boolean is_published
-        boolean is_free
-        int duration
-        datetime created_at
-        file video
-        file document
-        image thumbnail
+        String title
+        Text description
+        Integer order
+        Boolean is_published
+        Boolean is_free
+        Integer duration
+        DateTime created_at
+        File video
+        File document
+        String thumbnail
     }
 
-    User ||--o{ StudentProfile : "has"
-    User ||--o{ TeacherProfile : "has"
-    TeacherProfile }o--o{ User : "students"
-    TeacherProfile ||--|{ Course : "creates"
-    CourseCategory ||--|{ Course : "categorizes"
-    StudentProfile ||--|{ CourseEnrollment : "enrolls in"
-    Course ||--|{ CourseEnrollment : "is enrolled in"
-    TeacherProfile ||--|{ Coupon : "creates"
-    Course ||--|{ Coupon : "has"
-    StudentProfile }o--o{ Coupon : "uses"
-    Course ||--|{ CourseModule : "has"
-    CourseModule ||--|{ Lesson : "has"
+    User ||--o{ StudentProfile : "has one"
+    User ||--o{ TeacherProfile : "has one"
+    TeacherProfile ||--o{ TeacherStudentProfile : "manages"
+    StudentProfile ||--o{ TeacherStudentProfile : "is managed by"
+    TeacherProfile ||--o{ Course : "teaches"
+    CourseCategory ||--o{ Course : "categorizes"
+    StudentProfile ||--o{ CourseEnrollment : "enrolls in"
+    Course ||--o{ CourseEnrollment : "has"
+    TeacherProfile ||--o{ Coupon : "creates"
+    Course ||--o{ Coupon : "applies to"
+    Coupon ||--o{ CouponUsage : "used in"
+    StudentProfile ||--o{ CouponUsage : "uses"
+    Course ||--o{ CourseModule : "contains"
+    CourseModule ||--o{ Lesson : "includes"

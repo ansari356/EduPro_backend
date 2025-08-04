@@ -207,5 +207,5 @@ class TeacherStudentProfileSerializer(serializers.ModelSerializer):
 class JoinAuthenticatedStudent(serializers.ModelSerializer):
     class Meta:
         model = TeacherStudentProfile
-        fields = ['id', 'teacher', 'student', 'enrollment_date', 'notes', 'is_active', 'completed_lessons', 'last_activity', 'number_of_enrollment_courses', 'number_of_completed_courses']
+        fields = ['id', 'teacher', 'student', 'enrollment_date', 'notes', 'is_active', 'completed_lessons', 'last_activity', 'number_of_completed_courses']
         read_only_fields = fields
