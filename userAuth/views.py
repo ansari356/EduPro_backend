@@ -168,7 +168,7 @@ class GetSudentRelatedToTeacherAPIView(generics.ListAPIView):
 
 class GetTeacherProfileAPIView(generics.RetrieveAPIView):
     serializer_class = TeacherProfileSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     queryset = TeacherProfile.objects.all()
 
     def get_object(self) -> TeacherProfile:
