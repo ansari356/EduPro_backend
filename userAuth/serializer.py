@@ -134,7 +134,6 @@ class StudentProfileSerializer(serializers.ModelSerializer):
         
 class TeacherProfileSerializer(serializers.ModelSerializer):
     user = UserInfoSerializer(read_only=True)
-    # students = serializers.SerializerMethodField()
     number_of_students = serializers.SerializerMethodField()
     number_of_courses = serializers.SerializerMethodField()
     class Meta:
@@ -143,11 +142,7 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = [ 'rating', 'user', 'number_of_courses', 'number_of_students', 'id']
 
-    # def get_students(self, obj):
-    #     relations = TeacherStudentProfile.objects.filter(teacher=obj)
-    #     student_profiles = [relation.student for relation in relations]
-    #     return StudentProfileSerializer(student_profiles, many=True).data
-
+ 
     def get_number_of_students(self, obj):
         return obj.student_relations.count()
     
