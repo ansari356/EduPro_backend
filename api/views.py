@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render , get_object_or_404
 from rest_framework.views import APIView
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from userAuth.serializer import LoginSerializer,UserInfoSerializer
-from userAuth.models import User , TeacherStudentProfile
+from userAuth.models import User , TeacherStudentProfile , TeacherProfile
 
 
 
@@ -181,6 +181,40 @@ class CookieTokenRefreshView(APIView):
             access_token=str(refresh.access_token)
         except TokenError:
 
+            return Response({'error': 'Invalid or expired refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        res=Response({'message':'Token refreshed successfully'},status=status.HTTP_200_OK)
+        res.set_cookie(
+            key='access_token',
+            value=access_token,
+            httponly=True,
+            samesite='Lax',
+            secure=False
+        )
+        return res
+
+
+class CookieTokenRefreshStudentView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self,request,teacher_username):
+        teacher  = get_object_or_404(TeacherProfile, user__username=teacher_username)
+        
+        try:
+            student_profile = request.user.student_profile
+        except AttributeError:
+            return Response({'error': 'User is not a student or does not have a student profile.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not TeacherStudentProfile.objects.filter(student=student_profile, teacher=teacher).exists():
+                return Response({"error": f"You are not registered as a student for this teacher."}, status=status.HTTP_403_FORBIDDEN)
+        
+        refresh_token = request.COOKIES.get('refresh_token')
+        if refresh_token is None:
+            return Response({'error':'Refresh token not found'},status=status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            refresh=RefreshToken(refresh_token)
+            access_token=str(refresh.access_token)
+        except TokenError:
             return Response({'error': 'Invalid or expired refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
 
         res=Response({'message':'Token refreshed successfully'},status=status.HTTP_200_OK)

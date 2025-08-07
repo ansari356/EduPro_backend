@@ -6,17 +6,18 @@ from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
 from .permissions import IsLessonAccessible,IsModuleAccessible,IsModuleOwner,IsCourseOwner,IsTeacher , IsStudent
 from userAuth.models import User
-from .models import CourseCategory, Course, CourseEnrollment,Lesson,CourseModule , Coupon
+from .models import CourseCategory, Course, CourseEnrollment,Lesson,CourseModule , Coupon, ModuleEnrollment
 from .serializer import (CourseCategorySerializer,CourseCategoryCreateSerializer, CourseSerializer,
  CourseCreateSerializer,CouponCreateSerializer,CourseModuleListSerializer,LessonDetailSerializer,
 LessonCreateUpdateSerializer,CourseModuleDetailSerializer,CourseModuleCreateSerializer,
 CourseModuleUpdateSerializer,
 CouponSerializer,
-CourseEnrollmentCreateSerializer,CouesEnrollmentSerializer
+CourseEnrollmentCreateSerializer,CouesEnrollmentSerializer, ModuleEnrollmentSerializer, ModuleEnrollmentCreateSerializer
 )
 from rest_framework.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter , OrderingFilter
+from rest_framework.pagination import PageNumberPagination
 
 
 
@@ -65,7 +66,9 @@ class CourseCreateAPIView(generics.CreateAPIView):
 class CourseListAPIView(generics.ListAPIView):
     serializer_class = CourseSerializer
     permission_classes = [permissions.AllowAny]
-
+    pagination_class = PageNumberPagination
+    PageNumberPagination.page_size = 5
+    
 
     def get_queryset(self):
         return Course.objects.filter(is_published=True).select_related('teacher', 'category').order_by('-created_at')
@@ -76,7 +79,7 @@ class courselistteacher(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        if user.user_type == User.userType.TEACHER and hasattr(user, 'teacher_profile'):
+        if  hasattr(user, 'teacher_profile'):
             return Course.objects.filter(teacher=user.teacher_profile).select_related('category').order_by('-created_at')
         else:
             return Course.objects.none()
@@ -87,7 +90,7 @@ class CourseDetailAPIView(generics.RetrieveAPIView):
     
     def get_object(self):
         course_id = self.kwargs.get('course_id')
-        course = get_object_or_404(Course, id=course_id)
+        course = get_object_or_404(Course.objects.select_related('teacher', 'category'), id=course_id)
         return course
 
 class CourseUpdateAPIView(generics.UpdateAPIView):
@@ -96,22 +99,18 @@ class CourseUpdateAPIView(generics.UpdateAPIView):
     
     def get_object(self):
         course_id = self.kwargs.get('course_id')
-        course = get_object_or_404(Course, id=course_id, teacher=self.request.user.teacher_profile)
+        course = get_object_or_404(Course.objects.select_related('teacher', 'category'), id=course_id, teacher=self.request.user.teacher_profile)
         return course
 
 
 class CourseDeleteAPIView(generics.DestroyAPIView):
     serializer_class = CourseSerializer
     permission_classes = [IsTeacher]
-    
-    def get_object(self):
-        course_id = self.kwargs.get('course_id')
-        teacher=self.request.user.teacher_profile
-        course = get_object_or_404(Course, id=course_id, teacher=teacher)
-        teacher.number_of_courses-=1
-        teacher.save(update_fields=['number_of_courses'])
+    lookup_field = 'id'
+    lookup_url_kwarg = 'course_id'
 
-        return course
+    def get_queryset(self):
+        return Course.objects.filter(teacher=self.request.user.teacher_profile)
 
 
 
@@ -121,6 +120,8 @@ class CourseDeleteAPIView(generics.DestroyAPIView):
 class CouponCreateAPIView(generics.CreateAPIView):
     serializer_class = CouponCreateSerializer
     permission_classes = [IsTeacher]
+   
+    
     
     
 
@@ -128,59 +129,53 @@ class CouponCreateAPIView(generics.CreateAPIView):
 class CouponListAPIView(generics.ListAPIView):
     serializer_class =  CouponSerializer
     permission_classes = [IsTeacher]
+    pagination_class = PageNumberPagination
+    PageNumberPagination.page_size = 10
     
     def get_queryset(self):
         user = self.request.user
         try:
-            return Coupon.objects.filter(teacher=user.teacher_profile).select_related('course','teacher').order_by('-date')
+            return Coupon.objects.filter(teacher=user.teacher_profile).select_related('teacher').order_by('-date')
         except Coupon.DoesNotExist:
             return Coupon.objects.none()
 
 
-class CouponDetailAPiView(generics.RetrieveAPIView):
+class TeacherCouponQuerysetMixin:
+    """
+    A mixin to filter coupons based on the logged-in teacher.
+    """
     serializer_class = CouponSerializer
     permission_classes = [IsTeacher]
-    
-    def get_object(self):
-        coupon_id = self.kwargs.get('coupon_id')
-        if not coupon_id:
-            raise ValidationError({'coupon_id': 'Coupon ID is required'})
-        try:
-            coupon = Coupon.objects.get(id=coupon_id, teacher=self.request.user.teacher_profile)
-        except Coupon.DoesNotExist:
-            raise ValidationError({'coupon': 'Coupon not found or does not belong to this teacher'})
-        return coupon
+    lookup_field = 'id'
+    lookup_url_kwarg = 'coupon_id'
 
-class CouponUpdateAPIView(generics.UpdateAPIView):
-    serializer_class = CouponSerializer
-    permission_classes = [IsTeacher]
-    
-    def get_object(self):
-        coupon_id = self.kwargs.get('coupon_id')
-        if not coupon_id:
-            raise ValidationError({'coupon_id': 'Coupon ID is required'})
-        try:
-            coupon = Coupon.objects.get(id=coupon_id, teacher=self.request.user.teacher_profile)
-        except Coupon.DoesNotExist:
-            raise ValidationError({'coupon': 'Coupon not found or does not belong to this teacher'})
-        return coupon
+    def get_queryset(self):
+        user = self.request.user
+        if hasattr(user, 'teacher_profile'):
+            return Coupon.objects.filter(teacher=user.teacher_profile)
+        return Coupon.objects.none()
 
-class CouponDeleteAPIView(generics.DestroyAPIView):
-    serializer_class = CouponSerializer
-    permission_classes = [IsTeacher]
-    
-    def get_object(self):
-        coupon_id = self.kwargs.get('coupon_id')
-        if not coupon_id:
-            raise ValidationError({'coupon_id': 'Coupon ID is required'})
-        try:
-            coupon = Coupon.objects.get(id=coupon_id, teacher=self.request.user.teacher_profile)
-        except Coupon.DoesNotExist:
-            raise ValidationError({'coupon': 'Coupon not found or does not belong to this teacher'})
-        return coupon
+class CouponDetailAPiView(TeacherCouponQuerysetMixin, generics.RetrieveAPIView):
+    """
+    Retrieve a specific coupon belonging to the authenticated teacher.
+    """
+    pass
+
+class CouponUpdateAPIView(TeacherCouponQuerysetMixin, generics.UpdateAPIView):
+    """
+    Update a specific coupon belonging to the authenticated teacher.
+    """
+    pass
+
+class CouponDeleteAPIView(TeacherCouponQuerysetMixin, generics.DestroyAPIView):
+    """
+    Delete a specific coupon belonging to the authenticated teacher.
+    """
+    pass
 
 
 class CourseEnrollmentAPIView(generics.CreateAPIView):
+    """ post api for course enrollment return status_code 201 Created """
     serializer_class = CourseEnrollmentCreateSerializer
     permission_classes = [IsStudent]
 
@@ -188,8 +183,13 @@ class CourseEnrollmentAPIView(generics.CreateAPIView):
 
       
 class CourseEnrollmentListAPIView(generics.ListAPIView):
+    
+    """this  api retreving all course that student enrolled in  takes in url  teacher username"""
+    
     serializer_class = CourseSerializer
     permission_classes = [IsStudent]
+    pagination_class = PageNumberPagination
+    PageNumberPagination.page_size = 5
     
     def get_queryset(self):
         user = self.request.user
@@ -207,8 +207,13 @@ class CourseEnrollmentListAPIView(generics.ListAPIView):
     
 
 class CourseEnrollmentDeletAPIView(generics.DestroyAPIView):
+    """api for deleteing course enrollment return status_code 204 no content if student who will delete enrollment 
+     it must give me course id if teacher who will delete it must give me course id and enrollment id in url
+    
+    """
     serializer_class = CouesEnrollmentSerializer
     permission_classes = [permissions.IsAuthenticated]
+   
 
     def get_object(self):
         course_id = self.kwargs.get('course_id')
@@ -225,8 +230,6 @@ class CourseEnrollmentDeletAPIView(generics.DestroyAPIView):
         else:
             raise PermissionDenied("You do not have permission to perform this action.")
 
-        course.total_enrollments -= 1
-        course.save(update_fields=['total_enrollments'])
         return enrollment
     
 
@@ -387,7 +390,6 @@ class LessonDetailView(generics.RetrieveAPIView):
                 student=user.student_profile,
                 course=course,
                 is_active=True,
-                status__in=['active', 'completed']
             ).first()
             
             if enrollment and lesson.is_published:
@@ -444,3 +446,9 @@ class LessonDeleteView(generics.DestroyAPIView):
         instance = self.get_object()
         self.perform_destroy(instance)
         return Response({"detail": "Lesson deleted successfully."}, status=status.HTTP_200_OK)
+
+
+class ModuleEnrollmentAPIView(generics.CreateAPIView):
+    """ post api for module enrollment return status_code 201 Created """
+    serializer_class = ModuleEnrollmentCreateSerializer
+    permission_classes = [IsStudent]
