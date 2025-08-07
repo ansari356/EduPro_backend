@@ -159,16 +159,19 @@ class GetSudentRelatedToTeacherAPIView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        return TeacherProfile.objects.filter(user=user).prefetch_related(
+        try:
+         return TeacherProfile.objects.filter(user=user).prefetch_related(
             'student_relations__student__user'
-        )
+            )
+        except TeacherProfile.DoesNotExist:
+            return TeacherProfile.objects.none()
 
         
         
 
 class GetTeacherProfileAPIView(generics.RetrieveAPIView):
     serializer_class = TeacherProfileSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsTeacher]
     queryset = TeacherProfile.objects.all()
 
     def get_object(self) -> TeacherProfile:
@@ -183,11 +186,39 @@ class GetTeacherProfileAPIView(generics.RetrieveAPIView):
         obj = get_object_or_404(queryset, user=user)
         self.check_object_permissions(self.request, obj)
         return obj
+
+
+
+class PublicTeacherInfo(generics.RetrieveAPIView):
+    serializer_class = TeacherProfileSerializer
+    permission_classes = [AllowAny]
+    queryset = TeacherProfile.objects.all()
+
+    def get_object(self):
         
+        teacher_username = self.kwargs.get('teacher_username')
+
+        if not teacher_username:
+            raise ValidationError({'teacher_id': 'teacher username is required'})
+
+        user = get_object_or_404(User, user_type=User.userType.TEACHER, username=teacher_username)
+        
+        
+
+        queryset = self.get_queryset().select_related('user').annotate(
+            courses_count=Count('courses')
+        )
+        
+        
+        
+        obj = get_object_or_404(queryset, user=user)
+        self.check_object_permissions(self.request, obj)
+        return obj
+
    
 class UpdateStudentProfileAPIView(generics.UpdateAPIView):
     serializer_class = StudentProfileSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsStudent]
     
     def get_object(self) -> StudentProfile:
         user: User = self.request.user
@@ -201,7 +232,7 @@ class UpdateStudentProfileAPIView(generics.UpdateAPIView):
     
 class UpdateTeacherProfileAPIView(generics.UpdateAPIView):
     serializer_class = TeacherProfileSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsTeacher]
 
     def get_object(self) -> TeacherProfile:
         user: User = self.request.user
