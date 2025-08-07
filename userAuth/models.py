@@ -102,7 +102,13 @@ class TeacherProfile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     gender = models.CharField(max_length=10,null=True, blank=True)
     logo = models.ImageField(upload_to='logos/', blank=True, null=True)
-    theme_color = models.CharField(max_length=7, blank=True, null=True)
+    # educator theme colors
+    primary_color = models.CharField(max_length=7, blank=True, null=True)
+    primary_color_light = models.CharField(max_length=7, blank=True, null=True)
+    primary_color_dark = models.CharField(max_length=7, blank=True, null=True)
+    secondary_color = models.CharField(max_length=7, blank=True, null=True)
+    accent_color = models.CharField(max_length=7, blank=True, null=True)
+    background_color = models.CharField(max_length=7, blank=True, null=True)
     def __str__(self):
         return f'Teacher Profile of {self.user.first_name} {self.user.last_name}'
     

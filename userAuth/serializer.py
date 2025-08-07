@@ -110,7 +110,7 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
 class UserInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'email' , 'phone']
+        fields = ['id', 'first_name', 'last_name', 'email' , 'phone',"user_type","username","slug"]
         read_only_fields = fields
  
 
@@ -138,8 +138,9 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
     number_of_courses = serializers.SerializerMethodField()
     class Meta:
         model = TeacherProfile
-        fields = ['user', 'id', 'full_name', 'bio', 'profile_picture', 'date_of_birth', 'address', 'country', 'city', 'number_of_courses', 'specialization', 'institution', 'experiance', 'number_of_students', 'rating', 'gender','created_at', 'logo', 'theme_color']
-        read_only_fields = ['students', 'rating', 'user', 'number_of_courses']
+        # fields = ['user', 'id', 'full_name', 'bio', 'profile_picture', 'date_of_birth', 'address', 'country', 'city', 'number_of_courses', 'specialization', 'institution', 'experiance', 'number_of_students', 'rating', 'gender','created_at', 'logo', 'primary_color', 'primary_color_light', 'primary_color_dark', 'secondary_color', 'accent_color', 'background_color']
+        fields = "__all__"
+        read_only_fields = [ 'rating', 'user', 'number_of_courses', 'number_of_students', 'id']
 
  
     def get_number_of_students(self, obj):
