@@ -83,6 +83,18 @@ class courselistteacher(generics.ListAPIView):
             return Course.objects.filter(teacher=user.teacher_profile).select_related('category').order_by('-created_at')
         else:
             return Course.objects.none()
+        
+
+
+class CourseListForTeacherAPIView(generics.ListAPIView):
+    serializer_class = CourseSerializer
+    permission_classes = [permissions.AllowAny]
+
+
+    def get_queryset(self):
+        teacher_username = self.kwargs.get('teacher_username')
+        user = get_object_or_404(User, username=teacher_username)
+        return Course.objects.filter(teacher=user.teacher_profile).select_related('category').order_by('-created_at')
 
 class CourseDetailAPIView(generics.RetrieveAPIView):
     serializer_class = CourseSerializer
@@ -243,7 +255,7 @@ class CoursesFilterSerachAPIView(generics.ListAPIView):
     filterset_fields = ['category__name', 'teacher__full_name', 'is_published']
     search_fields = ['title', 'description']
     ordering_fields = ['created_at', 'price', 'total_enrollments']
-        
+    
 # course module views
 
 # course module list view
