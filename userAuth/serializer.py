@@ -38,6 +38,12 @@ class RegisterSerializer(serializers.ModelSerializer):
         return value
         
     
+    def validate_username(self,value):
+        if  len(value) < 5:
+            raise serializers.ValidationError('Username must be at least 5 characters long')
+        return value
+    
+    
     
     def create(self, validated_data):
         validated_data.pop('password2')
@@ -75,6 +81,11 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Phone already exists')
         return value
 
+    def validate_username(self,value):
+        if len(value) < 5:
+            raise serializers.ValidationError('Username must be at least 5 characters long')
+        return value
+    
     def create(self, validated_data):
         teacher_username = self.context['view'].kwargs.get('teacher_username')
         if not teacher_username:
