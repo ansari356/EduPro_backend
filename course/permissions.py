@@ -1,5 +1,5 @@
 from rest_framework import permissions
-from .models import CourseEnrollment, CourseModule,Lesson,Course
+from .models import CourseEnrollment, CourseModule,Lesson,Course, ModuleEnrollment
 from userAuth.models import User, StudentProfile, TeacherProfile
 from django.shortcuts import get_object_or_404
 
@@ -24,11 +24,20 @@ class IsLessonAccessible(permissions.BasePermission):
                 return True
             
             if user.user_type == User.userType.STUDENT and hasattr(user, 'student_profile'):
-                return CourseEnrollment.objects.filter(
+                has_full_access = CourseEnrollment.objects.filter(
                     student=user.student_profile,
                     course=course,
+                    access_type=CourseEnrollment.AccessType.FULL_ACCESS,
                     is_active=True,
                 ).exists()
+                
+                has_module_access = ModuleEnrollment.objects.filter(
+                    student=user.student_profile,
+                    module=lesson.module,
+                    is_active=True,
+                ).exists()
+
+                return has_full_access or has_module_access
             
             return False
             
@@ -59,12 +68,20 @@ class IsModuleAccessible(permissions.BasePermission):
                 return True
 
             if user.user_type == User.userType.STUDENT and hasattr(user, 'student_profile'):
-                return CourseEnrollment.objects.filter(
+                has_full_access = CourseEnrollment.objects.filter(
                     student=user.student_profile,
                     course=course,
+                    access_type=CourseEnrollment.AccessType.FULL_ACCESS,
                     is_active=True,
-                    status__in=['active', 'completed']
                 ).exists()
+
+                has_module_access = ModuleEnrollment.objects.filter(
+                    student=user.student_profile,
+                    module=module,
+                    is_active=True,
+                ).exists()
+
+                return has_full_access or has_module_access
 
             return False
 

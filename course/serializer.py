@@ -1,10 +1,11 @@
 from rest_framework import serializers
 from django.shortcuts import  get_object_or_404
 from moviepy.video.io.VideoFileClip import VideoFileClip
-from .models import CourseCategory , Course , CourseEnrollment , Coupon , CouponUsage,Lesson,CourseModule
+from .models import CourseCategory , Course , CourseEnrollment , Coupon , CouponUsage,Lesson,CourseModule, ModuleEnrollment
 from django.db import IntegrityError, transaction
 from django.utils import timezone
-
+from .utilis import genrate_coupon_code
+from datetime import timedelta
 class CourseCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = CourseCategory
@@ -65,117 +66,124 @@ class CourseCreateSerializer(serializers.ModelSerializer):
 
 
 class CouponCreateSerializer(serializers.ModelSerializer):
-    course_id = serializers.UUIDField(write_only=True, required=True)  
+    number_of_coupons = serializers.IntegerField(min_value=1,write_only=True, required=True)
     class Meta:
         model = Coupon
-        fields = ['course_id', 'status', 'max_uses', 'discount', 'expiration_date']
-        
-    
+        fields = ['number_of_coupons','price']
+
+
     def create(self, validated_data):
         user = self.context['request'].user
-        course_id = validated_data.pop('course_id')
-        course = get_object_or_404(Course, id=course_id)
-        if not course:
-            raise serializers.ValidationError({'course': 'Course is required'})
-        
-        if course.teacher != user.teacher_profile:
-            raise serializers.ValidationError({'course': 'You are not the teacher of this course'})
-        
-        coupon = Coupon.objects.create(
-            teacher=user.teacher_profile,
-            course=course,
-            is_active=True,
-            **validated_data
-        )
-        return coupon
+        number_of_coupons = validated_data.pop('number_of_coupons')
+        coupons_to_create = []
+        expiration_date = timezone.now() + timedelta(days=30)
+        for _ in range(number_of_coupons):
+            code = genrate_coupon_code(10)
+            coupons_to_create.append(
+                Coupon(
+                    teacher=user.teacher_profile,
+                    is_active=True,
+                    code=code,
+                    expiration_date=expiration_date,
+                    **validated_data
+                )
+            )
+        try:
+            Coupon.objects.bulk_create(coupons_to_create, ignore_conflicts=True)
+        except IntegrityError:
+            pass
 
+        return Coupon.objects.filter(teacher=user.teacher_profile).order_by('-date')
 class CouponSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Coupon
-        fields = ['id', 'course', 'teacher', 'code', 'status', 'max_uses', 'used_count', 'expiration_date', 'discount', 'is_active', 'date']
+        fields = ['id',  'teacher', 'code', 'status', 'max_uses', 'used_count', 'expiration_date', 'price', 'is_active', 'date']
         read_only_fields = ['id', 'code', 'used_count', 'date', ]
 
 class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
-    coupon_code = serializers.CharField(write_only=True, required=True, allow_blank=True)
+    coupon_code = serializers.CharField(write_only=True, required=False, allow_blank=True)
     course_id = serializers.UUIDField(write_only=True, required=True)
-    
+
     class Meta:
         model = CourseEnrollment
         fields = ['course_id', 'coupon_code']
 
-    
+    def _validate_and_use_coupon(self, coupon_code, course, student_profile):
+        try:
+            coupon = Coupon.objects.select_for_update().select_related('teacher').get(code=coupon_code)
+            now = timezone.now()
+
+            if coupon.teacher != course.teacher:
+                raise serializers.ValidationError({'coupon': 'Coupon is not valid for this course'})
+            if coupon.expiration_date and coupon.expiration_date < now:
+                raise serializers.ValidationError({'coupon': 'Coupon has expired'})
+            if coupon.used_count >= coupon.max_uses:
+                raise serializers.ValidationError({'coupon': 'Coupon has reached its maximum uses'})
+            if not coupon.is_active:
+                raise serializers.ValidationError({'coupon': 'Coupon is not active'})
+            if not course.is_published:
+                raise serializers.ValidationError({'course': 'Course is not published'})
+            if not coupon.teacher.student_relations.filter(student=student_profile).exists():
+                raise serializers.ValidationError({'user': 'You are not a student of this teacher.'})
+            
+            if coupon.status == Coupon.CouponType.FULL_ACCSESSED and coupon.price == course.price:
+                CouponUsage.objects.create(coupon=coupon, student=student_profile , course=course)
+                coupon.used_count += 1
+                if coupon.used_count >= coupon.max_uses:
+                    coupon.is_active = False
+                coupon.save(update_fields=['used_count', 'is_active'])
+                return True
+            else:
+                raise serializers.ValidationError({'coupon': 'Coupon status does not allow enrollment'})
+        except Coupon.DoesNotExist:
+            raise serializers.ValidationError({'coupon': 'Invalid coupon code'})
+
     def create(self, validated_data):
         user = self.context['request'].user
         course_id = validated_data.pop('course_id')
         coupon_code = validated_data.pop('coupon_code', None)
         student_profile = user.student_profile
+        course = get_object_or_404(Course, id=course_id)
 
+        existing_enrollment = CourseEnrollment.objects.filter(student=student_profile, course=course).first()
 
-        if not coupon_code:
-            raise serializers.ValidationError({'coupon_code': 'Coupon code is required'})
+        if existing_enrollment:
+            if existing_enrollment.access_type == CourseEnrollment.AccessType.FULL_ACCESS:
+                raise serializers.ValidationError({'student': 'Student already has full access to this course'})
+            
+            if coupon_code:
+                with transaction.atomic():
+                    if self._validate_and_use_coupon(coupon_code, course, student_profile):
+                        existing_enrollment.access_type = CourseEnrollment.AccessType.FULL_ACCESS
+                        existing_enrollment.status = CourseEnrollment.EnrollmentStatus.COMPLETED
+                        existing_enrollment.save()
+                        return existing_enrollment
+            else:
+                raise serializers.ValidationError({'student': 'Student already enrolled in this course with no access. Provide a coupon to upgrade.'})
 
-        try:
-            with transaction.atomic():
-                
-                coupon = Coupon.objects.select_for_update().select_related(
-                    'course', 'teacher'
-                ).get(code=coupon_code)
-                
-                course = coupon.course
-                
-                # Validate course ID matches
-                if str(course.id) != str(course_id):
-                    raise serializers.ValidationError({'course': 'Coupon is not valid for this course'})
-                
-               
-                now = timezone.now()
-                if coupon.expiration_date and coupon.expiration_date < now:
-                    raise serializers.ValidationError({'coupon': 'Coupon has expired'})
-                if coupon.used_count >= coupon.max_uses:
-                    raise serializers.ValidationError({'coupon': 'Coupon has reached its maximum uses'})
-                if not coupon.is_active:
-                    raise serializers.ValidationError({'coupon': 'Coupon is not active'})
-                if not course.is_published:
-                    raise serializers.ValidationError({'course': 'Course is not published'})
-                
-                if not coupon.teacher.student_relations.filter(student=student_profile).exists():
-                    raise serializers.ValidationError({'user': 'You are not a student of this teacher.'})
-                
-                if CourseEnrollment.objects.filter(student=student_profile, course=course).exists():
-                    raise serializers.ValidationError({'student': 'Student already enrolled in this course'})
-                
-               
-                if coupon.status == Coupon.CouponType.FULL_ACCSESSED or coupon.discount == course.price:
-                    enrollment = CourseEnrollment.objects.create(
-                        student=student_profile,
-                        course=course,
-                        status=CourseEnrollment.EnrollmentStatus.COMPLETED,
-                        is_active=True
-                    )
-                    
-                   
-                    CouponUsage.objects.create(
-                        coupon=coupon,
-                        student=student_profile,
-                    )
-                    
-                    coupon.used_count += 1
-                    if coupon.used_count >= coupon.max_uses:
-                        coupon.is_active = False
-                    coupon.save(update_fields=['used_count', 'is_active'])
-                    
-                    course.total_enrollments += 1
-                    course.save(update_fields=['total_enrollments'])
-               
-                    return enrollment
-                else:
-                    raise serializers.ValidationError({'coupon': 'Coupon status does not allow enrollment'})
-        
-        except Coupon.DoesNotExist:
-            raise serializers.ValidationError({'coupon': 'Invalid coupon code'})
-        except IntegrityError:
-            raise serializers.ValidationError({'student': 'Concurrent enrollment attempt detected'})
+        else:
+            if coupon_code:
+                with transaction.atomic():
+                    if self._validate_and_use_coupon(coupon_code, course, student_profile):
+                        enrollment = CourseEnrollment.objects.create(
+                            student=student_profile,
+                            course=course,
+                            access_type=CourseEnrollment.AccessType.FULL_ACCESS,
+                            status=CourseEnrollment.EnrollmentStatus.COMPLETED,
+                            is_active=True
+                        )
+                        return enrollment
+            else:
+                enrollment = CourseEnrollment.objects.create(
+                    student=student_profile,
+                    course=course,
+                    access_type=CourseEnrollment.AccessType.NO_ACCESS,
+                    status=CourseEnrollment.EnrollmentStatus.PENDING,
+                    is_active=True
+                )
+                return enrollment
+        return existing_enrollment
 
 
 class CouesEnrollmentSerializer(serializers.ModelSerializer):
@@ -183,6 +191,83 @@ class CouesEnrollmentSerializer(serializers.ModelSerializer):
         model = CourseEnrollment
         fields = ['id', 'teacher', 'student', 'course', 'status', 'is_active', 'date']
         read_only_fields = ['id', 'date']
+
+
+class ModuleEnrollmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ModuleEnrollment
+        fields = '__all__'
+
+
+class ModuleEnrollmentCreateSerializer(serializers.ModelSerializer):
+    coupon_code = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    module_id = serializers.UUIDField(write_only=True, required=True)
+
+    class Meta:
+        model = ModuleEnrollment
+        fields = ['module_id', 'coupon_code']
+
+    def _validate_and_use_coupon(self, coupon_code, module, student_profile):
+        try:
+            coupon = Coupon.objects.select_for_update().select_related('teacher').get(code=coupon_code)
+            now = timezone.now()
+
+            if coupon.teacher != module.course.teacher:
+                raise serializers.ValidationError({'coupon': 'Coupon is not valid for this module'})
+            if coupon.expiration_date and coupon.expiration_date < now:
+                raise serializers.ValidationError({'coupon': 'Coupon has expired'})
+            if coupon.used_count >= coupon.max_uses:
+                raise serializers.ValidationError({'coupon': 'Coupon has reached its maximum uses'})
+            if not coupon.is_active:
+                raise serializers.ValidationError({'coupon': 'Coupon is not active'})
+            if not module.is_published:
+                raise serializers.ValidationError({'module': 'Module is not published'})
+            if not coupon.teacher.student_relations.filter(student=student_profile).exists():
+                raise serializers.ValidationError({'user': 'You are not a student of this teacher.'})
+            
+            if coupon.status == Coupon.CouponType.FULL_ACCSESSED and coupon.price == module.price:
+                CouponUsage.objects.create(coupon=coupon, student=student_profile , module=module , course = module.course)
+                coupon.used_count += 1
+                if coupon.used_count >= coupon.max_uses:
+                    coupon.is_active = False
+                coupon.save(update_fields=['used_count', 'is_active'])
+                return True
+            else:
+                raise serializers.ValidationError({'coupon': 'Coupon status does not allow enrollment'})
+        except Coupon.DoesNotExist:
+            raise serializers.ValidationError({'coupon': 'Invalid coupon code'})
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        module_id = validated_data.pop('module_id')
+        coupon_code = validated_data.pop('coupon_code', None)
+        student_profile = user.student_profile
+        module = get_object_or_404(CourseModule, id=module_id)
+
+        if ModuleEnrollment.objects.filter(student=student_profile, module=module).exists():
+            raise serializers.ValidationError({'student': 'Student already enrolled in this module'})
+
+        if coupon_code:
+            with transaction.atomic():
+                if self._validate_and_use_coupon(coupon_code, module, student_profile):
+                    enrollment = ModuleEnrollment.objects.create(
+                        student=student_profile,
+                        module=module,
+                        status=ModuleEnrollment.EnrollmentStatus.ACTIVE,
+                        is_active=True
+                    )
+                    return enrollment
+        elif module.price == 0 or module.is_free:
+             enrollment = ModuleEnrollment.objects.create(
+                student=student_profile,
+                module=module,
+                status=ModuleEnrollment.EnrollmentStatus.ACTIVE,
+                is_active=True
+            )
+             return enrollment
+        else:
+            raise serializers.ValidationError({'coupon_code': 'Coupon code is required for paid modules.'})
+        return None
     
     
 
@@ -324,7 +409,7 @@ class CourseModuleListSerializer(serializers.ModelSerializer):
     course=serializers.CharField(source='course.title',read_only=True)
     class Meta:
         model = CourseModule
-        fields = ['id', 'title','course', 'order', 'total_lessons', 'total_duration','image_url']
+        fields = ['id', 'title','course', 'order', 'price', 'is_free', 'total_lessons', 'total_duration','image_url']
         read_only_fields=fields
     
     def get_image_url(self, obj):

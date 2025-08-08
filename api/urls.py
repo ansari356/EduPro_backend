@@ -11,9 +11,11 @@ urlpatterns = [
     path('student/student-profile/<teacher_username>',user_views.GetStudentProfileAPIView.as_view(),name='student-profile'),
     path('student/update-profile/', user_views.UpdateStudentProfileAPIView.as_view(), name='update-student-profile'),
     
-    # teacher endpoints
+    # teacher endpoints  PublicTeacherInfo
     path('teacher/teacher-register/',user_views.RegisterAPIView.as_view(), name='teacher_register'),
     path('teacher/teacher-profile/',user_views.GetTeacherProfileAPIView.as_view(),name='teacher-profile'),
+    path('teacher/teacher-profile/<teacher_username>',user_views.PublicTeacherInfo.as_view(),name='teacher-profile-puplic-info'),
+    
     path('teacher/update-profile/', user_views.UpdateTeacherProfileAPIView.as_view(), name='update-teacher-profile'),
     path('teacher/students/remove/<student_id>/', user_views.RemoveStudentAPIView.as_view(), name='teacher-student-remove'),
     path('teacher/get_students/',user_views.GetSudentRelatedToTeacherAPIView.as_view(),name="get-students"),
@@ -30,6 +32,7 @@ urlpatterns = [
     path('course/category/update/<category_id>',  course_views.CourseCategoryUpdateAPIView.as_view(), name='course-category-list'),
     path('course/create/', course_views.CourseCreateAPIView.as_view(), name='course-create'),
     path('course/list/',course_views.CourseListAPIView.as_view(),name='course-list'),
+    path('course/teacher-list/<teacher_username>',course_views.CourseListForTeacherAPIView.as_view(),name='course-list-teacher'),
     path('course/course-detail/<course_id>',course_views.CourseDetailAPIView.as_view(),name='course-detail'),
     path('course/update/<course_id>',course_views.CourseUpdateAPIView.as_view(),name='course-update'),
     path('course/course-delete/<course_id>',course_views.CourseDeleteAPIView.as_view(),name='course-delete'),
@@ -37,6 +40,8 @@ urlpatterns = [
     path('course/course-enrollment-list/<teacher_username>',course_views.CourseEnrollmentListAPIView.as_view(),name='course-enrollmnebt-list'),
     path('course/course-enrollment-delete/<course_id>/<enrollment_id>',course_views.CourseEnrollmentDeletAPIView.as_view(),name='course-enrollmnebt-delete'),
     path('course/course-search-filter/',course_views.CoursesFilterSerachAPIView.as_view(),name='course-search-filter'),
+    path('course/module-enrollment/',course_views.ModuleEnrollmentAPIView.as_view(),name='module-enrollment'),
+    
     # CuponEndpoints
     path('coupon/create/', course_views.CouponCreateAPIView.as_view(), name='coupon-create'),
     path('coupon/list/', course_views.CouponListAPIView.as_view(), name='coupon-list'), 

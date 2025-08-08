@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render , get_object_or_404
 from rest_framework.views import APIView
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from userAuth.serializer import LoginSerializer,UserInfoSerializer
-from userAuth.models import User , TeacherStudentProfile
+from userAuth.models import User , TeacherStudentProfile , TeacherProfile
 
 
 
@@ -105,7 +105,7 @@ class LoginStudentAPIView(APIView):
             if not TeacherStudentProfile.objects.filter(student=user_to_check.student_profile, teacher=teacher_user.teacher_profile).exists():
                 return Response({"error": f"You are not registered as a student for {teacher_username}."}, status=status.HTTP_403_FORBIDDEN)
         except User.DoesNotExist:
-            return Response({"error": "A user with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Invalid credentials. Please check your email and password"}, status=status.HTTP_401_UNAUTHORIZED)
 
         user = authenticate(username=email, password=password)
 
@@ -192,3 +192,5 @@ class CookieTokenRefreshView(APIView):
             secure=False
         )
         return res
+
+

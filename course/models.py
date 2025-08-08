@@ -53,12 +53,18 @@ class CourseEnrollment(models.Model):
         COMPLETED = 'completed', 'Completed'
         CANCELLED = 'cancelled', 'Cancelled'
         EXPIRED = 'expired', 'Expired'
+    
+    class AccessType(models.TextChoices):
+        FULL_ACCESS = 'full_access', 'Full Access'
+        NO_ACCESS = 'no_access', 'No Access'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
     student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE, related_name='enrollments')
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='enrollments')
     enrollment_date =  models.DateTimeField(auto_now_add=True)
     ended_date = models.DateTimeField(blank=True, null=True)
     status = models.CharField(max_length=10, choices=EnrollmentStatus.choices, default=EnrollmentStatus.PENDING)
+    access_type = models.CharField(max_length=20, choices=AccessType.choices, default=AccessType.NO_ACCESS)
     is_completed = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     progress = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
@@ -85,13 +91,13 @@ class Coupon(models.Model):
         LIMITED_ACCESS = 'limited_access', 'Limited Access'
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
     teacher = models.ForeignKey(TeacherProfile, on_delete=models.CASCADE, related_name='coupons')
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='coupons')
+    # course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='coupons')
     code = models.CharField(max_length=15, blank=True,unique=True)
     status = models.CharField(max_length=20, choices=CouponType.choices, default=CouponType.FULL_ACCSESSED)
     max_uses = models.PositiveIntegerField(default=1)
     used_count = models.PositiveIntegerField(default=0)
     expiration_date = models.DateTimeField(blank=True, null=True)
-    discount = models.IntegerField(default=0 , null=True, blank=True)
+    price = models.IntegerField(default=0 , null=True, blank=True)
     is_active= models.BooleanField(default=True)
     date = models.DateTimeField(auto_now_add=True)
     
@@ -108,6 +114,12 @@ class Coupon(models.Model):
         if not self.expiration_date:
             self.expiration_date = timezone.now() + timedelta(days=30)
         super().save(*args, **kwargs)
+        
+    class Meta:
+        unique_together = ('code', 'teacher')
+        indexes = [
+            models.Index(fields=['code']),
+        ]
 
 
 class CouponUsage(models.Model):
@@ -115,7 +127,8 @@ class CouponUsage(models.Model):
     coupon = models.ForeignKey(Coupon, on_delete=models.CASCADE, related_name='usages')
     student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE, related_name='coupon_usages')
     used_at = models.DateTimeField(auto_now_add=True)
-    
+    course= models.ForeignKey(Course, on_delete=models.SET_NULL, related_name='couponCourse_usages', null=True, blank=True)
+    module = models.ForeignKey('CourseModule', on_delete=models.SET_NULL, related_name='couponModule_usages', null=True, blank=True)
     class Meta:
         unique_together = ('coupon', 'student')
         
@@ -130,6 +143,8 @@ class CourseModule(models.Model):
     description = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to='course_modules/images/', null=True, blank=True)
     order = models.PositiveIntegerField(default=1)
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    is_free = models.BooleanField(default=False)
     is_published = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     total_lessons = models.PositiveIntegerField(default=0)
@@ -162,7 +177,40 @@ class CourseModule(models.Model):
     class Meta:
         ordering = ['order']
         unique_together = ('course', 'order')
+
+
+class ModuleEnrollment(models.Model):
+    class EnrollmentStatus(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        ACTIVE = 'active', 'Active'
+        COMPLETED = 'completed', 'Completed'
+        CANCELLED = 'cancelled', 'Cancelled'
+        EXPIRED = 'expired', 'Expired'
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
+    student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE, related_name='module_enrollments')
+    module = models.ForeignKey(CourseModule, on_delete=models.CASCADE, related_name='enrollments')
+    enrollment_date =  models.DateTimeField(auto_now_add=True)
+    ended_date = models.DateTimeField(blank=True, null=True)
+    status = models.CharField(max_length=10, choices=EnrollmentStatus.choices, default=EnrollmentStatus.PENDING)
+    is_completed = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    progress = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
     
+    class Meta:
+        unique_together = ('student', 'module')  
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['enrollment_date']),
+        ]
+    
+    
+    def __str__(self):
+        return f'{self.student.user.first_name} enrolled in {self.module.title}'
+
+    def save(self, *args, **kwargs):
+        if not self.ended_date:
+            self.ended_date = timezone.now() + timedelta(days=30)
+        super().save(*args, **kwargs)
     
     
     
