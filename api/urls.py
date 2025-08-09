@@ -72,5 +72,6 @@ urlpatterns = [
     path('lessons/<uuid:id>/update/', course_views.LessonUpdateView.as_view(), name='lesson-update'),      # PUT/PATCH: update lesson
     path('lessons/<uuid:id>/delete/', course_views.LessonDeleteView.as_view(), name='lesson-delete'),      # DELETE: delete lesson
     
-    
+    # video status check
+    path('video/check-status/', course_views.CheckVideoStatusAPIView.as_view(), name='check-video-status'),
 ]

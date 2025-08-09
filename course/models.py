@@ -215,6 +215,11 @@ class ModuleEnrollment(models.Model):
     
     
 class Lesson(models.Model):
+    class VideoProcessingStatus(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        PROCESSING = 'processing', 'Processing'
+        READY = 'ready', 'Ready'
+        FAILED = 'failed', 'Failed'
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
     module = models.ForeignKey(CourseModule, on_delete=models.CASCADE, related_name='lessons')
@@ -225,6 +230,12 @@ class Lesson(models.Model):
     is_free = models.BooleanField(default=False)
     duration = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+    video_id = models.CharField(max_length=100, blank=True, null=True)
+    video_processing_status = models.CharField(
+        max_length=20,
+        choices=VideoProcessingStatus.choices,
+        default=VideoProcessingStatus.PENDING
+    )
     
     # Content fields
     video = models.FileField(upload_to='lessons/videos/', blank=True, null=True)
@@ -272,3 +283,4 @@ class Lesson(models.Model):
     @property
     def teacher(self):
         return self.module.course.teacher
+

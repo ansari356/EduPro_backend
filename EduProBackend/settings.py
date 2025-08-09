@@ -209,10 +209,14 @@ CELERY_TIMEZONE = 'UTC'
 CELERY_BEAT_SCHEDULE = {
     'check-expired-coupons': {
         'task': 'course.tasks.check_expired_coupons',
-        'schedule': 120.0,  
+        'schedule': crontab(hour=0, minute=0),  
     },
     'check-expired-enrollments': {
         'task': 'course.tasks.check_expired_enrollments',
         'schedule': crontab(hour=0, minute=0),  
     },
 }
+
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50MB
