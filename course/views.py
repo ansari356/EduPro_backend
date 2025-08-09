@@ -12,13 +12,13 @@ from .serializer import (CourseCategorySerializer,CourseCategoryCreateSerializer
 LessonCreateUpdateSerializer,CourseModuleDetailSerializer,CourseModuleCreateSerializer,
 CourseModuleUpdateSerializer,
 CouponSerializer,
-CourseEnrollmentCreateSerializer,CouesEnrollmentSerializer, ModuleEnrollmentSerializer, ModuleEnrollmentCreateSerializer
+CourseEnrollmentCreateSerializer,CouesEnrollmentSerializer, ModuleEnrollmentSerializer, ModuleEnrollmentCreateSerializer ,
 )
 from rest_framework.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter , OrderingFilter
 from rest_framework.pagination import PageNumberPagination
-
+from .utilis import get_vdocipher_video_details
 
 
 
@@ -60,6 +60,7 @@ class CourseCategoryUpdateAPIView(generics.UpdateAPIView):
 class CourseCreateAPIView(generics.CreateAPIView):
     serializer_class = CourseCreateSerializer
     permission_classes = [IsTeacher]
+    queryset = Course.objects.all()
 
 
 
@@ -409,6 +410,9 @@ class LessonDetailView(generics.RetrieveAPIView):
         
         raise PermissionDenied("You don't have permission to access this lesson.")
     
+
+
+
 # lesson create view 
 class LessonCreateView(generics.CreateAPIView):
     """
@@ -416,12 +420,15 @@ class LessonCreateView(generics.CreateAPIView):
     """
     serializer_class = LessonCreateUpdateSerializer
     permission_classes = [IsModuleOwner]
+    queryset = Lesson.objects.all()
     
     def perform_create(self, serializer):
         module_id = self.kwargs.get('module_id')
         module = get_object_or_404(CourseModule, id=module_id)
         
         serializer.save(module=module)
+
+
 
 # lesson update view    
 class LessonUpdateView(generics.UpdateAPIView):
@@ -460,7 +467,33 @@ class LessonDeleteView(generics.DestroyAPIView):
         return Response({"detail": "Lesson deleted successfully."}, status=status.HTTP_200_OK)
 
 
+
+
 class ModuleEnrollmentAPIView(generics.CreateAPIView):
     """ post api for module enrollment return status_code 201 Created """
     serializer_class = ModuleEnrollmentCreateSerializer
     permission_classes = [IsStudent]
+
+class CheckVideoStatusAPIView(generics.GenericAPIView):
+    permission_classes = [IsTeacher]
+
+    def get(self, request, *args, **kwargs):
+        user =  self.request.user
+        teacher = user.teacher_profile
+        pending_lessons = Lesson.objects.filter(
+            module__course__teacher=teacher,
+            video_id__isnull=False,
+            video_processing_status=Lesson.VideoProcessingStatus.PENDING
+        )
+        for lesson in pending_lessons:
+            video_details = get_vdocipher_video_details(lesson.video_id)
+            if video_details:
+                video_status = video_details.get('status')
+                if video_status == 'ready':
+                    lesson.duration = video_details.get('length', 0)
+                    lesson.video_processing_status = Lesson.VideoProcessingStatus.READY
+                    lesson.save(update_fields=['duration', 'video_processing_status'])
+                else:
+                    
+                    pass
+        return Response({"message": "Video status check completed."}, status=status.HTTP_200_OK)

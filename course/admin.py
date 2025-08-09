@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CourseCategory, Course, CourseEnrollment , Coupon ,CouponUsage,CourseModule,Lesson, ModuleEnrollment
+from .models import CourseCategory, Course, CourseEnrollment , Coupon ,CouponUsage,CourseModule,Lesson, ModuleEnrollment 
 
 # Register your models here.
 
@@ -67,3 +67,5 @@ class ModuleEnrollmentAdmin(admin.ModelAdmin):
     raw_id_fields = ('student', 'module')
 
 admin.site.register(ModuleEnrollment ,ModuleEnrollmentAdmin)
+
+

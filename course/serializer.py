@@ -4,8 +4,13 @@ from moviepy.video.io.VideoFileClip import VideoFileClip
 from .models import CourseCategory , Course , CourseEnrollment , Coupon , CouponUsage,Lesson,CourseModule, ModuleEnrollment
 from django.db import IntegrityError, transaction
 from django.utils import timezone
-from .utilis import genrate_coupon_code
+from .utilis import genrate_coupon_code , genrate_otp
 from datetime import timedelta
+from requests_toolbelt import MultipartEncoder
+import requests
+
+from .tasks import upload_video_to_vdocipher_task
+
 class CourseCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = CourseCategory
@@ -289,7 +294,8 @@ class LessonSimpleSerializer(serializers.ModelSerializer):
         return None
 
 class LessonDetailSerializer(serializers.ModelSerializer):
-    video_url = serializers.SerializerMethodField()
+    otp = serializers.SerializerMethodField()
+    playback_info = serializers.SerializerMethodField()
     document_url = serializers.SerializerMethodField()
     thumbnail_url = serializers.SerializerMethodField()
     module = serializers.CharField(source='module.title',read_only=True)
@@ -297,15 +303,12 @@ class LessonDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
         fields = [
-            'id', 'title', 'module', 'description', 'order',
+            'id', 'title', 'module', 'otp', 'playback_info', 'description', 'order',
             'is_published', 'is_free', 'duration',
-            'created_at', 'video_url', 'document_url', 'thumbnail_url'
+            'created_at',  'document_url', 'thumbnail_url'
         ]
 
         read_only_fields = fields
-    def get_video_url(self, obj):
-        request = self.context.get('request')
-        return request.build_absolute_uri(obj.video.url) if obj.video else None
 
     def get_document_url(self, obj):
         request = self.context.get('request')
@@ -314,21 +317,29 @@ class LessonDetailSerializer(serializers.ModelSerializer):
     def get_thumbnail_url(self, obj):
         request = self.context.get('request')
         return request.build_absolute_uri(obj.thumbnail.url) if obj.thumbnail else None
+    
+    def get_otp(self, obj):
+        otp, _ = genrate_otp(obj.video_id)
+        return otp
+
+    def get_playback_info(self, obj):
+        _, playback_info = genrate_otp(obj.video_id)
+        return playback_info
+
+
+
 class LessonCreateUpdateSerializer(serializers.ModelSerializer):
+    video = serializers.FileField(write_only=True)
     class Meta:
         model = Lesson
         fields = [
             'title', 'description', 'order',
-            'is_published', 'is_free', 'duration',
+            'is_published', 'is_free', 'duration', 'video_id',
             'video', 'document', 'thumbnail', 'module'
         ]
-        read_only_fields=['duration','module']
+        read_only_fields=['id','video_id', 'duration','module']
         
     # validate_duration
-    def validate_duration(self, value):
-        if value is not None and value <= 0:
-            raise serializers.ValidationError("lesson duration must be greater than 0")
-        return value
     
     # validate_order
     def validate_order(self, value):
@@ -337,10 +348,7 @@ class LessonCreateUpdateSerializer(serializers.ModelSerializer):
         return value
     
     # validate_video
-    def validate_video(self, value):
-        if value and not value.name.lower().endswith(('.mp4', '.mov', '.avi')):
-            raise serializers.ValidationError("Unsupported extensions ")
-        return value
+   
     
     # validate_document
     def validate_document(self, value):
@@ -368,24 +376,18 @@ class LessonCreateUpdateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("there is already lesson in this order")
         return attrs
     
-    def get_video_duration(self, path):
-        try:
-            if not path.lower().endswith(('.mp4', '.mov', '.avi')):
-                return 0
-            clip = VideoFileClip(path)
-            return clip.duration 
-        except Exception as e:
-            return 0
     
     # calculate duration after video saving
     def create(self,validated_data):
-        video=validated_data.get('video',None)
-        lesson=Lesson.objects.create(**validated_data)
+        video = validated_data.pop('video')
         
-        if video:
-            duration = self.get_video_duration(lesson.video.path) # duration in seconds
-            lesson.duration = int(duration)
-            lesson.save()
+        # Create the lesson instance without the video_id first
+        lesson = Lesson.objects.create(**validated_data)
+        
+        # Trigger the asynchronous upload task
+        video_data = video.read()
+        upload_video_to_vdocipher_task.delay(lesson.id, list(video_data), video.name)
+        
         return lesson
     
     # manipulate video in update
@@ -401,6 +403,15 @@ class LessonCreateUpdateSerializer(serializers.ModelSerializer):
         return instance
 
 
+
+
+
+
+
+
+
+    
+    
 # course module serializers
 
 # To display the list of modules (light display without much detail).

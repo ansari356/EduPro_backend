@@ -3,6 +3,8 @@ asgiref==3.9.0
 attrs==25.3.0
 billiard==4.2.1
 celery==5.5.3
+certifi==2025.8.3
+charset-normalizer==3.4.2
 click==8.2.1
 click-didyoumean==0.3.1
 click-plugins==1.1.1.2
@@ -19,6 +21,7 @@ djangorestframework==3.16.0
 djangorestframework_simplejwt==5.5.0
 drf-spectacular==0.28.0
 drf-yasg==1.21.10
+idna==3.10
 imageio==2.37.0
 imageio-ffmpeg==0.6.0
 inflection==0.5.1
@@ -41,6 +44,8 @@ pytz==2025.2
 PyYAML==6.0.2
 redis==6.2.0
 referencing==0.36.2
+requests==2.32.4
+requests-toolbelt==1.0.0
 rpds-py==0.26.0
 six==1.17.0
 sqlparse==0.5.3
@@ -48,5 +53,6 @@ tqdm==4.67.1
 typing_extensions==4.14.1
 tzdata==2025.2
 uritemplate==4.2.0
+urllib3==2.5.0
 vine==5.1.0
 wcwidth==0.2.13
