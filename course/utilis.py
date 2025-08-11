@@ -107,3 +107,23 @@ def get_vdocipher_video_details(video_id):
     except requests.exceptions.RequestException as e:
         logger.error(f"Failed to get video details from VdoCipher for video_id {video_id}: {e}")
         return None
+
+def delete_vdocipher_video(video_id):
+    """
+    Deletes a video from VdoCipher.
+    """
+    api_secret_key = config('SECRET_KEY_VED')
+    url = "https://dev.vdocipher.com/api/videos"
+    headers = {
+        'Authorization': f"Apisecret {api_secret_key}"
+    }
+    querystring = {"videos": video_id}
+
+    try:
+        response = requests.delete(url, headers=headers, params=querystring)
+        response.raise_for_status()
+        logger.info(f"Successfully initiated deletion for video_id {video_id} from VdoCipher.")
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to delete video from VdoCipher for video_id {video_id}: {e}")
+        return None

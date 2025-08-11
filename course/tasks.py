@@ -2,7 +2,7 @@ from celery import shared_task
 from django.utils import timezone
 from .models import Coupon , CourseEnrollment , Lesson
 from datetime import timedelta
-from .utilis import upload_to_vdocipher, get_vdocipher_video_details
+from .utilis import upload_to_vdocipher, get_vdocipher_video_details, delete_vdocipher_video
 
 import logging
 import os
@@ -65,3 +65,16 @@ def upload_video_to_vdocipher_task(self, lesson_id, temp_video_path, video_name,
         if temp_dir_path and default_storage.exists(temp_dir_path):
             full_temp_dir_path = default_storage.path(temp_dir_path)
             shutil.rmtree(full_temp_dir_path)
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=300)
+def delete_video_from_vdocipher_task(self, video_id):
+    """
+    Celery task to delete a video from VdoCipher with retry logic.
+    """
+    try:
+        logger.info(f"Attempting to delete video {video_id} from VdoCipher.")
+        delete_vdocipher_video(video_id)
+    except Exception as e:
+        logger.error(f"Failed to delete video {video_id} from VdoCipher. Retrying... Error: {e}")
+        self.retry(exc=e)

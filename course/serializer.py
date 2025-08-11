@@ -7,11 +7,10 @@ from django.utils import timezone
 from .utilis import genrate_coupon_code , genrate_otp
 from datetime import timedelta
 import uuid
-
 from .tasks import upload_video_to_vdocipher_task
-import tempfile
 import os
 from django.core.files.storage import default_storage
+import shutil
 
 class CourseCategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -350,6 +349,17 @@ class LessonCreateUpdateSerializer(serializers.ModelSerializer):
         return value
     
     # validate_video
+    def validate_video(self, value):
+        # 1 GB limit
+        if value.size > 1024 * 1024 * 1024:
+            raise serializers.ValidationError("Video file size cannot exceed 1 GB.")
+        
+        allowed_extensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm']
+        ext = os.path.splitext(value.name)[1].lower()
+        if ext not in allowed_extensions:
+            raise serializers.ValidationError(f"Unsupported video file format. Allowed formats: {', '.join(allowed_extensions)}")
+            
+        return value
    
     
     # validate_document
@@ -391,11 +401,19 @@ class LessonCreateUpdateSerializer(serializers.ModelSerializer):
         temp_dir_path = os.path.join('tmp', upload_task_id)
         temp_video_path = os.path.join(temp_dir_path, video.name)
 
-        # Save the video to the unique temporary directory
-        default_storage.save(temp_video_path, video)
+        try:
+            # Save the video to the unique temporary directory
+            default_storage.save(temp_video_path, video)
 
-        # Trigger the asynchronous upload task with the directory path for cleanup
-        upload_video_to_vdocipher_task.delay(lesson.id, temp_video_path, video.name, temp_dir_path)
+            # Trigger the asynchronous upload task with the directory path for cleanup
+            upload_video_to_vdocipher_task.delay(lesson.id, temp_video_path, video.name, temp_dir_path)
+        except Exception as e:
+            # If saving or task queuing fails, clean up the directory
+            if default_storage.exists(temp_dir_path):
+                full_temp_dir_path = default_storage.path(temp_dir_path)
+                shutil.rmtree(full_temp_dir_path)
+            # Re-raise the exception to ensure the transaction fails
+            raise e
         
         return lesson
     
