@@ -216,8 +216,8 @@ class ModuleEnrollment(models.Model):
     
 class Lesson(models.Model):
     class VideoProcessingStatus(models.TextChoices):
-        PENDING = 'pending', 'Pending'
-        PROCESSING = 'processing', 'Processing'
+        PRE_UPLOAD = 'pre-upload', 'Pre-Upload'
+        QUEUED = 'queued', 'Queued'
         READY = 'ready', 'Ready'
         FAILED = 'failed', 'Failed'
     
@@ -234,7 +234,7 @@ class Lesson(models.Model):
     video_processing_status = models.CharField(
         max_length=20,
         choices=VideoProcessingStatus.choices,
-        default=VideoProcessingStatus.PENDING
+        default=VideoProcessingStatus.PRE_UPLOAD
     )
     
     # Content fields
@@ -283,4 +283,3 @@ class Lesson(models.Model):
     @property
     def teacher(self):
         return self.module.course.teacher
-

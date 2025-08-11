@@ -1,6 +1,10 @@
 import random
 import string
 import requests
+from requests_toolbelt.multipart.encoder import MultipartEncoder
+from decouple import config
+from rest_framework import serializers
+import logging
 
 def genrate_coupon_code(length=10):
     characters = string.ascii_uppercase + string.digits 
@@ -31,14 +35,11 @@ def genrate_otp(video_id):
     
     
 
-from requests_toolbelt.multipart.encoder import MultipartEncoder
-from decouple import config
-from rest_framework import serializers
-import logging
+
 
 logger = logging.getLogger(__name__)
 
-def upload_to_vdocipher(video, title):
+def upload_to_vdocipher(video_path, video_name, title):
     """
     Initiates the upload process with VdoCipher and uploads the video file.
     Returns the video_id.
@@ -66,24 +67,25 @@ def upload_to_vdocipher(video, title):
         logger.error("Invalid response from VdoCipher API during upload initiation.")
         raise serializers.ValidationError('Invalid response from VdoCipher API')
 
-    m = MultipartEncoder(fields=[
-        ('x-amz-credential', client_payload['x-amz-credential']),
-        ('x-amz-algorithm', client_payload['x-amz-algorithm']),
-        ('x-amz-date', client_payload['x-amz-date']),
-        ('x-amz-signature', client_payload['x-amz-signature']),
-        ('key', client_payload['key']),
-        ('policy', client_payload['policy']),
-        ('success_action_status', '201'),
-        ('success_action_redirect', ''),
-        ('file', (video.name, video.read(), 'video/mp4'))
-    ])
+    with open(video_path, 'rb') as video_file:
+        m = MultipartEncoder(fields=[
+            ('x-amz-credential', client_payload['x-amz-credential']),
+            ('x-amz-algorithm', client_payload['x-amz-algorithm']),
+            ('x-amz-date', client_payload['x-amz-date']),
+            ('x-amz-signature', client_payload['x-amz-signature']),
+            ('key', client_payload['key']),
+            ('policy', client_payload['policy']),
+            ('success_action_status', '201'),
+            ('success_action_redirect', ''),
+            ('file', (video_name, video_file, 'video/mp4'))
+        ])
 
-    try:
-        response = requests.post(upload_link, data=m, headers={'Content-Type': m.content_type})
-        response.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Failed to upload video to VdoCipher: {e}")
-        raise serializers.ValidationError(f'Failed to upload video to VdoCipher: {e}')
+        try:
+            response = requests.post(upload_link, data=m, headers={'Content-Type': m.content_type})
+            response.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to upload video to VdoCipher: {e}")
+            raise serializers.ValidationError(f'Failed to upload video to VdoCipher: {e}')
 
     return video_id
 

@@ -73,5 +73,5 @@ urlpatterns = [
     path('lessons/<uuid:id>/delete/', course_views.LessonDeleteView.as_view(), name='lesson-delete'),      # DELETE: delete lesson
     
     # video status check
-    path('video/check-status/', course_views.CheckVideoStatusAPIView.as_view(), name='check-video-status'),
+    path('video/check-status/<lesson_id>', course_views.CheckVideoStatusAPIView.as_view(), name='check-video-status'),
 ]

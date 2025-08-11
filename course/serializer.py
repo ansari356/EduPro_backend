@@ -6,10 +6,12 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 from .utilis import genrate_coupon_code , genrate_otp
 from datetime import timedelta
-from requests_toolbelt import MultipartEncoder
-import requests
+import uuid
 
 from .tasks import upload_video_to_vdocipher_task
+import tempfile
+import os
+from django.core.files.storage import default_storage
 
 class CourseCategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -384,22 +386,48 @@ class LessonCreateUpdateSerializer(serializers.ModelSerializer):
         # Create the lesson instance without the video_id first
         lesson = Lesson.objects.create(**validated_data)
         
-        # Trigger the asynchronous upload task
-        video_data = video.read()
-        upload_video_to_vdocipher_task.delay(lesson.id, list(video_data), video.name)
+        # Create a unique directory for the upload
+        upload_task_id = str(uuid.uuid4())
+        temp_dir_path = os.path.join('tmp', upload_task_id)
+        temp_video_path = os.path.join(temp_dir_path, video.name)
+
+        # Save the video to the unique temporary directory
+        default_storage.save(temp_video_path, video)
+
+        # Trigger the asynchronous upload task with the directory path for cleanup
+        upload_video_to_vdocipher_task.delay(lesson.id, temp_video_path, video.name, temp_dir_path)
         
         return lesson
     
+    
     # manipulate video in update
     def update(self, instance, validated_data):
-        video = validated_data.get('video', None)
+        video = validated_data.pop('video', None)
+        
+        # Update other fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        instance.save()
+        
         if video:
-            duration = self.get_video_duration(instance.video.path)
-            instance.duration = int(duration)
+            # If a new video is uploaded, trigger the async task
+            instance.video_processing_status = Lesson.VideoProcessingStatus.PRE_UPLOAD
+            instance.video_id = None  # Reset video_id
             instance.save()
+
+            # Create a unique directory for the upload
+            upload_task_id = str(uuid.uuid4())
+            temp_dir_path = os.path.join('tmp', upload_task_id)
+            temp_video_path = os.path.join(temp_dir_path, video.name)
+
+            # Save the video to the unique temporary directory
+            default_storage.save(temp_video_path, video)
+
+            # Trigger the asynchronous upload task with the directory path for cleanup
+            upload_video_to_vdocipher_task.delay(instance.id, temp_video_path, video.name, temp_dir_path)
+        else:
+            # If no new video, just save the other changes
+            instance.save()
+            
         return instance
 
 
