@@ -153,6 +153,9 @@ class CouponListAPIView(generics.ListAPIView):
             return Coupon.objects.none()
 
 
+
+
+
 class TeacherCouponQuerysetMixin:
     """
     A mixin to filter coupons based on the logged-in teacher.
@@ -426,7 +429,15 @@ class LessonCreateView(generics.CreateAPIView):
         module_id = self.kwargs.get('module_id')
         module = get_object_or_404(CourseModule, id=module_id)
         
-        serializer.save(module=module)
+        lesson = serializer.save(module=module)
+        return lesson
+    
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        lesson = self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response({'lesson_id': lesson.id, 'message': 'Lesson created, video upload in progress.'}, status=status.HTTP_201_CREATED, headers=headers)
 
 
 
@@ -478,22 +489,37 @@ class CheckVideoStatusAPIView(generics.GenericAPIView):
     permission_classes = [IsTeacher]
 
     def get(self, request, *args, **kwargs):
-        user =  self.request.user
-        teacher = user.teacher_profile
-        pending_lessons = Lesson.objects.filter(
-            module__course__teacher=teacher,
-            video_id__isnull=False,
-            video_processing_status=Lesson.VideoProcessingStatus.PENDING
-        )
-        for lesson in pending_lessons:
-            video_details = get_vdocipher_video_details(lesson.video_id)
-            if video_details:
-                video_status = video_details.get('status')
-                if video_status == 'ready':
-                    lesson.duration = video_details.get('length', 0)
-                    lesson.video_processing_status = Lesson.VideoProcessingStatus.READY
-                    lesson.save(update_fields=['duration', 'video_processing_status'])
-                else:
-                    
-                    pass
-        return Response({"message": "Video status check completed."}, status=status.HTTP_200_OK)
+        lesson_id = self.kwargs.get('lesson_id')
+        lesson = get_object_or_404(Lesson, id=lesson_id)
+
+        if lesson.video_processing_status == Lesson.VideoProcessingStatus.FAILED:
+            return Response({"message": "Video processing failed. Please try uploading again."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if lesson.video_processing_status == Lesson.VideoProcessingStatus.READY:
+            return Response({"message": "video is ready"}, status=status.HTTP_200_OK)
+
+        if not lesson.video_id:
+            return Response({"message": "video is uploading"}, status=status.HTTP_200_OK)
+
+        video_details = get_vdocipher_video_details(lesson.video_id)
+
+        if not video_details:
+            return Response({"message": "Could not retrieve video status."}, status=status.HTTP_400_BAD_REQUEST)
+
+        video_status = video_details.get('status')
+
+        if video_status == 'ready':
+            lesson.duration = video_details.get('length', 0)
+            lesson.video_processing_status = Lesson.VideoProcessingStatus.READY
+            lesson.save(update_fields=['duration', 'video_processing_status'])
+            return Response({"message": "video is ready"}, status=status.HTTP_200_OK)
+        
+        elif video_status == 'queued':
+            lesson.video_processing_status = Lesson.VideoProcessingStatus.QUEUED
+            lesson.save(update_fields=['video_processing_status'])
+            return Response({"message": "the video is processed"}, status=status.HTTP_200_OK)
+
+        elif video_status == 'pre-upload':
+            return Response({"message": "video is uploading"}, status=status.HTTP_200_OK)
+
+        return Response({"message": f"Video status: {video_status}"}, status=status.HTTP_200_OK)

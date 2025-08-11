@@ -6,7 +6,9 @@ from .utilis import upload_to_vdocipher, get_vdocipher_video_details
 
 import logging
 import os
+import shutil
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 
 @shared_task
 def check_expired_coupons():
@@ -38,18 +40,28 @@ def check_expired_enrollments():
 logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def upload_video_to_vdocipher_task(self, lesson_id, video_data, video_name):
+def upload_video_to_vdocipher_task(self, lesson_id, temp_video_path, video_name, temp_dir_path):
     try:
         lesson = Lesson.objects.get(id=lesson_id)
-        video_file = ContentFile(bytes(video_data), name=video_name)
+        lesson.video_processing_status = Lesson.VideoProcessingStatus.QUEUED
+        lesson.save(update_fields=['video_processing_status'])
         
-        video_id = upload_to_vdocipher(video_file, lesson.title)
+        full_video_path = default_storage.path(temp_video_path)
+        video_id = upload_to_vdocipher(full_video_path, video_name, lesson.title)
         
         lesson.video_id = video_id
-        lesson.save(update_fields=['video_id'])
+        lesson.video_processing_status = Lesson.VideoProcessingStatus.READY
+        lesson.save(update_fields=['video_id', 'video_processing_status'])
         
     except Lesson.DoesNotExist:
         logger.error(f"Lesson with id {lesson_id} not found.")
     except Exception as e:
         logger.error(f"Error uploading video for lesson {lesson_id}: {e}")
+        lesson.video_processing_status = Lesson.VideoProcessingStatus.FAILED
+        lesson.save(update_fields=['video_processing_status'])
         self.retry(exc=e)
+    finally:
+        # Clean up the entire unique temporary directory
+        if temp_dir_path and default_storage.exists(temp_dir_path):
+            full_temp_dir_path = default_storage.path(temp_dir_path)
+            shutil.rmtree(full_temp_dir_path)
