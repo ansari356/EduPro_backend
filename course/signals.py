@@ -2,7 +2,10 @@ from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django.db.models import F
 from .models import Course , CourseEnrollment, Lesson
+from .tasks import delete_video_from_vdocipher_task
+import logging
 
+logger = logging.getLogger(__name__)
 
 
 
@@ -44,11 +47,19 @@ def update_number_of_lessons(sender, instance, **kwargs):
     course = instance.module.course
     course.total_lessons = F('total_lessons') + 1
     course.save(update_fields=['total_lessons'])
-    
+
+
+  
 @receiver(post_delete, sender=Lesson)
-def update_number_of_lessons(sender, instance, **kwargs):
+def update_number_of_lessons_and_delete_video(sender, instance, **kwargs):
+    # Update lesson count
     course = instance.module.course
-    if course.total_lessons == 0:
-        return
-    course.total_lessons = F('total_lessons') - 1
-    course.save(update_fields=['total_lessons'])
+    if course.total_lessons > 0:
+        course.total_lessons = F('total_lessons') - 1
+        course.save(update_fields=['total_lessons'])
+    
+    # Delete video from VdoCipher
+    if instance.video_id:
+        logger.info(f"Lesson {instance.id} with video_id {instance.video_id} was deleted. "
+                    f"Triggering background task to delete from VdoCipher.")
+        delete_video_from_vdocipher_task.delay(instance.video_id)
