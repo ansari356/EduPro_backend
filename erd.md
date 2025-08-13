@@ -149,6 +149,80 @@ erDiagram
         String thumbnail
     }
 
+    Assessment {
+        UUID id PK
+        UUID teacher_id FK
+        UUID lesson_id FK
+        UUID module_id FK
+        UUID course_id FK
+        String title
+        Text description
+        String assessment_type
+        Boolean is_published
+        Boolean is_timed
+        Integer time_limit
+        Integer max_attempts
+        Decimal passing_score
+        DateTime available_from
+        DateTime available_until
+        Integer total_questions
+        Decimal total_marks
+        DateTime created_at
+        DateTime updated_at
+    }
+
+    Question {
+        UUID id PK
+        UUID assessment_id FK
+        Text question_text
+        String question_type
+        Decimal mark
+        Integer order
+        Text explanation
+        Image image
+    }
+
+    QuestionOption {
+        UUID id PK
+        UUID question_id FK
+        String option_text
+        Boolean is_correct
+        Integer order
+    }
+
+    StudentAssessmentAttempt {
+        UUID id PK
+        UUID student_id FK
+        UUID assessment_id FK
+        UUID graded_by_id FK
+        Integer attempt_number
+        String status
+        DateTime started_at
+        DateTime ended_at
+        Integer time_taken
+        Decimal score
+        Decimal percentage
+        Boolean is_passed
+        Boolean auto_graded
+        DateTime graded_at
+        Text teacher_feedback
+    }
+
+    StudentAnswer {
+        UUID id PK
+        UUID attempt_id FK
+        UUID question_id FK
+        UUID selected_option_id FK
+        Text text_answer
+        Decimal marks_awarded
+        Boolean is_correct
+        Text teacher_feedback
+        Boolean auto_graded
+        Boolean manual_graded
+        DateTime created_at
+        DateTime updated_at
+    }
+
     User ||--o{ StudentProfile : "has one"
     User ||--o{ TeacherProfile : "has one"
     TeacherProfile ||--o{ TeacherStudentProfile : "manages"
@@ -163,3 +237,15 @@ erDiagram
     StudentProfile ||--o{ CouponUsage : "uses"
     Course ||--o{ CourseModule : "contains"
     CourseModule ||--o{ Lesson : "includes"
+    TeacherProfile ||--o{ Assessment : "creates"
+    Lesson ||--o{ Assessment : "has quiz"
+    CourseModule ||--o{ Assessment : "has assignment"
+    Course ||--o{ Assessment : "has exam"
+    Assessment ||--o{ Question : "contains"
+    Question ||--o{ QuestionOption : "has options"
+    StudentProfile ||--o{ StudentAssessmentAttempt : "attempts"
+    Assessment ||--o{ StudentAssessmentAttempt : "is attempted"
+    TeacherProfile ||--o{ StudentAssessmentAttempt : "grades"
+    StudentAssessmentAttempt ||--o{ StudentAnswer : "contains"
+    Question ||--o{ StudentAnswer : "answered in"
+    QuestionOption ||--o{ StudentAnswer : "selected in"

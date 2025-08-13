@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'userAuth',
     'api',
     'course',
+    'assessments',
     
     # third party
     'rest_framework',
@@ -167,7 +168,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'api.authentication.CookieJWTAuthentication',
+        'userAuth.authentication.CookieJWTAuthentication',
     ),
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -214,6 +215,10 @@ CELERY_BEAT_SCHEDULE = {
     'check-expired-enrollments': {
         'task': 'course.tasks.check_expired_enrollments',
         'schedule': crontab(hour=0, minute=0),  
+    },
+     'check-expired-attempts': {
+        'task': 'assessment.tasks.expire_old_attempts',
+        'schedule': crontab(minute='*'),
     },
 }
 
