@@ -1,7 +1,8 @@
 from django.urls import path
 from userAuth import views as user_views
-from .views import LoginView, LogoutView, LoginStudentAPIView , CookieTokenRefreshView
+from userAuth.views import LoginView, LogoutView, LoginStudentAPIView , CookieTokenRefreshView
 from course import views as course_views
+from assessments import views as assessments_views
 
 urlpatterns = [
 
@@ -74,4 +75,76 @@ urlpatterns = [
     
     # video status check
     path('video/check-status/<lesson_id>', course_views.CheckVideoStatusAPIView.as_view(), name='check-video-status'),
+    
+      # Assessment CRUD
+    path('teacher/assessments/', 
+         assessments_views.TeacherAssessmentListCreateView.as_view(), 
+         name='teacher-assessment-list-create'),
+    
+    path('teacher/assessments/<uuid:assessment_id>/', 
+         assessments_views.TeacherAssessmentRetrieveUpdateDestroyView.as_view(), 
+         name='teacher-assessment-detail'),
+    
+    # Question CRUD
+    path('teacher/assessments/<uuid:assessment_id>/questions/', 
+         assessments_views.TeacherQuestionListCreateView.as_view(), 
+         name='teacher-question-list-create'),
+    
+    path('teacher/assessments/questions/<uuid:question_id>/', 
+         assessments_views.TeacherQuestionRetrieveUpdateDestroyView.as_view(), 
+         name='teacher-question-detail'),
+    
+    # Question Options CRUD
+    path('teacher/questions/<uuid:question_id>/options/', 
+         assessments_views.TeacherQuestionOptionListCreateView.as_view(), 
+         name='teacher-question-option-list-create'),
+    
+    path('teacher/questions/options/<uuid:option_id>/', 
+         assessments_views.TeacherQuestionOptionRetrieveUpdateDestroyView.as_view(), 
+         name='teacher-question-option-detail'),
+    
+    # student assessments
+    path('student/assessments/<str:teacher_username>/', 
+         assessments_views.StudentAssessmentListView.as_view(), 
+         name='student-assessment-list'),
+    
+    # student start assessment
+    path('student/assessments/<uuid:assessment_id>/<str:teacher_username>/start/', 
+         assessments_views.StudentStartAssessmentView.as_view(), 
+         name='student-start-assessment'),
+    
+    # student submit assessment
+    path(
+        'students/attempts/<uuid:attempt_id>/submit/',
+        assessments_views.StudentSubmitAssessmentView.as_view(),
+        name='student-submit-attempt'
+    ),
+    
+    # all attemps
+    path(
+        'student/<str:teacher_username>/attempts/',
+        assessments_views.StudentAssessmentAttemptListView.as_view(),
+        name='student-assessment-attempt-list'
+    ),
+    
+    # attemp result
+    path(
+        'student/attempts/<uuid:attempt_id>/result/',
+        assessments_views.StudentAssessmentAttemptDetailView.as_view(),
+        name='student-assessment-attempt-result'
+    ),
+    
+    # Teacher Grading Endpoints
+    
+    # all questions that need to manual grading
+    # additional filters (assessment_id,assessment_type,question_type)
+    path('teacher/grading/pending/', 
+         assessments_views.TeacherPendingGradingListView.as_view(), 
+         name='teacher-pending-grading-list'),
+    
+    # teacher grade specific answer
+    path('teacher/grading/answer/<uuid:answer_id>/', 
+         assessments_views.TeacherGradeAnswerView.as_view(), 
+         name='teacher-grade-answer'),
 ]
+
