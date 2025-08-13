@@ -514,7 +514,7 @@ class CheckVideoStatusAPIView(generics.GenericAPIView):
             lesson.save(update_fields=['duration', 'video_processing_status'])
             return Response({"message": "video is ready"}, status=status.HTTP_200_OK)
         
-        elif video_status == 'queued':
+        elif video_status == 'Queued':
             lesson.video_processing_status = Lesson.VideoProcessingStatus.QUEUED
             lesson.save(update_fields=['video_processing_status'])
             return Response({"message": "the video is processed"}, status=status.HTTP_200_OK)

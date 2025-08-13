@@ -47,11 +47,17 @@ def upload_video_to_vdocipher_task(self, lesson_id, temp_video_path, video_name,
         lesson.save(update_fields=['video_processing_status'])
         
         full_video_path = default_storage.path(temp_video_path)
+        logger.info(f"Starting video upload for lesson {lesson_id} from path {full_video_path}")
         video_id = upload_to_vdocipher(full_video_path, video_name, lesson.title)
         
-        lesson.video_id = video_id
-        lesson.video_processing_status = Lesson.VideoProcessingStatus.READY
-        lesson.save(update_fields=['video_id', 'video_processing_status'])
+        if video_id:
+            logger.info(f"Successfully initiated video upload for lesson {lesson_id}. VdoCipher video_id: {video_id}")
+            lesson.video_id = video_id
+            lesson.save(update_fields=['video_id'])
+        else:
+            logger.error(f"upload_to_vdocipher did not return a video_id for lesson {lesson_id}.")
+            lesson.video_processing_status = Lesson.VideoProcessingStatus.FAILED
+            lesson.save(update_fields=['video_processing_status'])
         
     except Lesson.DoesNotExist:
         logger.error(f"Lesson with id {lesson_id} not found.")
