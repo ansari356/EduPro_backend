@@ -7,7 +7,7 @@ from .utilis import genrate_coupon_code
 from django.db.models.functions import Coalesce
 from PIL import Image
 from django.core.validators import MinValueValidator, MaxValueValidator
-
+from django.db.models import Sum,Count
 # Create your models here.
 
 class CourseCategory(models.Model):
@@ -42,7 +42,15 @@ class Course(models.Model):
     def __str__(self):
         return self.title
 
-    
+    def update_totals(self):
+        totals=self.modules.aggregate(
+            total_lessons=Sum('total_lessons'),
+            total_duration=Sum('total_duration')
+        )
+        
+        self.total_lessons = totals['total_lessons'] or 0
+        self.total_durations = totals['total_duration'] or 0
+        self.save(update_fields=['total_lessons', 'total_durations'])
     
     
 
@@ -166,14 +174,11 @@ class CourseModule(models.Model):
         self.total_duration = totals['total_duration'] or 0
         self.save(update_fields=['total_lessons', 'total_duration'])
         
-    
+        self.course.update_totals()
+
     @property
     def teacher(self):
         return self.course.teacher
-
-    @property
-    def lessons(self):
-        return self.lessons
     
     class Meta:
         ordering = ['order']
@@ -251,31 +256,26 @@ class Lesson(models.Model):
         super().save(*args, **kwargs)
         
         if self.thumbnail:
-            img = Image.open(self.thumbnail.path)
-
-            max_size = (400, 300)   
-            img.thumbnail(max_size)  
-
-            img.save(self.thumbnail.path)
+            if self.thumbnail:
+                img = Image.open(self.thumbnail.path)
+                max_size = (400, 300)
+                img.thumbnail(max_size)
+                img.save(self.thumbnail.path)
             
-            self.module.update_totals()
+           
         
     def delete(self, *args, **kwargs):
+        
+        if self.video:
+            self.video.delete(save=False)
+        if self.document:
+            self.document.delete(save=False)
+        if self.thumbnail:
+            self.thumbnail.delete(save=False)
+        
         super().delete(*args, **kwargs)
         self.module.update_totals()
         
-    def update(self, *args, **kwargs):
-        super().update(*args, **kwargs)
-        
-        if self.thumbnail:
-            img = Image.open(self.thumbnail.path)
-
-            max_size = (400, 300)   
-            img.thumbnail(max_size)  
-
-            img.save(self.thumbnail.path)
-            
-            self.module.update_totals()
     
     class Meta:
         ordering = ['order']
