@@ -153,7 +153,7 @@ class TeacherQuestionOptionRetrieveUpdateDestroyView(generics.RetrieveUpdateDest
 # Student Views
 class StudentAssessmentListView(generics.ListAPIView):
     serializer_class = AssessmentListSerializer
-    
+    permission_classes = [IsAuthenticated, IsStudent]
     def get_queryset(self):
         from course.models import CourseEnrollment, ModuleEnrollment
         
@@ -217,7 +217,7 @@ class StudentStartAssessmentView(generics.CreateAPIView):
 class StudentSubmitAssessmentView(generics.UpdateAPIView):
     
     serializer_class = StudentAssessmentAttemptSubmitSerializer
-    permission_classes = [IsAuthenticated, CanSubmitAttempt]
+    permission_classes = [IsAuthenticated,IsStudent, CanSubmitAttempt]
     
     def get_object(self):
         attempt_id = self.kwargs.get('attempt_id')
