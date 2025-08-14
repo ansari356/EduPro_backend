@@ -1,7 +1,7 @@
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
-from django.db.models import F
-from .models import Course , CourseEnrollment, Lesson
+from django.db.models import F, Avg
+from .models import Course , CourseEnrollment, Lesson, Rating
 from .tasks import delete_video_from_vdocipher_task
 import logging
 
@@ -63,3 +63,19 @@ def update_number_of_lessons_and_delete_video(sender, instance, **kwargs):
         logger.info(f"Lesson {instance.id} with video_id {instance.video_id} was deleted. "
                     f"Triggering background task to delete from VdoCipher.")
         delete_video_from_vdocipher_task.delay(instance.video_id)
+
+@receiver(post_save, sender=Rating)
+def update_course_rating_on_save(sender, instance, **kwargs):
+    course = instance.course
+    ratings = Rating.objects.filter(course=course)
+    course.total_reviews = ratings.count()
+    course.average_rating = ratings.aggregate(Avg('rating'))['rating__avg'] or 0
+    course.save(update_fields=['total_reviews', 'average_rating'])
+
+@receiver(post_delete, sender=Rating)
+def update_course_rating_on_delete(sender, instance, **kwargs):
+    course = instance.course
+    ratings = Rating.objects.filter(course=course)
+    course.total_reviews = ratings.count()
+    course.average_rating = ratings.aggregate(Avg('rating'))['rating__avg'] or 0
+    course.save(update_fields=['total_reviews', 'average_rating'])

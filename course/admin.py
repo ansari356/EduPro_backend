@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CourseCategory, Course, CourseEnrollment , Coupon ,CouponUsage,CourseModule,Lesson, ModuleEnrollment 
+from .models import CourseCategory, Course, CourseEnrollment , Coupon ,CouponUsage,CourseModule,Lesson, ModuleEnrollment,Rating 
 
 # Register your models here.
 
@@ -68,4 +68,12 @@ class ModuleEnrollmentAdmin(admin.ModelAdmin):
 
 admin.site.register(ModuleEnrollment ,ModuleEnrollmentAdmin)
 
+
+class RatingAdmin(admin.ModelAdmin):
+    list_display = ('id', 'course', 'student', 'rating', 'created_at')
+    list_filter = ('course', 'student')
+    search_fields = ('course__title', 'student__full_name')
+
+
+admin.site.register(Rating, RatingAdmin)
 
