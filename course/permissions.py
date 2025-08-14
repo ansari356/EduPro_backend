@@ -1,5 +1,5 @@
 from rest_framework import permissions
-from .models import CourseEnrollment, CourseModule,Lesson,Course, ModuleEnrollment
+from .models import CourseEnrollment, CourseModule,Lesson,Course, ModuleEnrollment, Rating
 from userAuth.models import User, StudentProfile, TeacherProfile
 from django.shortcuts import get_object_or_404
 
@@ -142,3 +142,53 @@ class IsStudent(permissions.BasePermission):
             request.user.is_authenticated and 
             request.user.user_type == request.user.userType.STUDENT
         )
+
+class CanRateCourse(permissions.BasePermission):
+    """
+    Permission to check if a student can rate a course.
+    """
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated or not hasattr(request.user, 'student_profile'):
+            return False
+
+        if request.method == 'POST':
+            course_id = view.kwargs.get('course_id')
+            if not course_id:
+                return False
+            course = get_object_or_404(Course, id=course_id)
+            
+            # Check if the student has full access to the course or is enrolled in at least one module
+            has_full_access = CourseEnrollment.objects.filter(
+                student=request.user.student_profile,
+                course=course,
+                access_type=CourseEnrollment.AccessType.FULL_ACCESS,
+                is_active=True
+            ).exists()
+
+            is_enrolled_in_module = ModuleEnrollment.objects.filter(
+                student=request.user.student_profile,
+                module__course=course,
+                is_active=True
+            ).exists()
+
+            if not (has_full_access or is_enrolled_in_module):
+                self.message = "You must have full access to the course or be enrolled in at least one module to rate it."
+                return False
+
+            # Check if the student has already rated the course
+            has_rated = Rating.objects.filter(
+                student=request.user.student_profile,
+                course=course
+            ).exists()
+            if has_rated:
+                self.message = "You have already rated this course."
+                return False
+        
+        return True
+
+    def has_object_permission(self, request, view, obj):
+        if not request.user.is_authenticated or not hasattr(request.user, 'student_profile'):
+            return False
+        
+        # Students can only modify their own ratings
+        return obj.student == request.user.student_profile

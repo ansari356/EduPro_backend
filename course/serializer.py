@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from django.shortcuts import  get_object_or_404
 from moviepy.video.io.VideoFileClip import VideoFileClip
-from .models import CourseCategory , Course , CourseEnrollment , Coupon , CouponUsage,Lesson,CourseModule, ModuleEnrollment
+from .models import CourseCategory , Course , CourseEnrollment , Coupon , CouponUsage,Lesson,CourseModule, ModuleEnrollment,Rating
+from userAuth.models import StudentProfile
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from .utilis import genrate_coupon_code , genrate_otp
@@ -11,7 +12,6 @@ from .tasks import upload_video_to_vdocipher_task
 import os
 from django.core.files.storage import default_storage
 import shutil
-
 class CourseCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = CourseCategory
@@ -107,6 +107,18 @@ class CouponSerializer(serializers.ModelSerializer):
         fields = ['id',  'teacher', 'code', 'status', 'max_uses', 'used_count', 'expiration_date', 'price', 'is_active', 'date']
         read_only_fields = ['id', 'code', 'used_count', 'date', ]
 
+class CouponUsageSerialzier(serializers.ModelSerializer):
+    coupon = CouponSerializer(read_only=True)
+    student = serializers.ReadOnlyField(source='student.full_name')
+    course = serializers.ReadOnlyField(source='course.title')
+    module = serializers.ReadOnlyField(source='module.title')
+    
+    class Meta:
+        model = CouponUsage
+        fields = ['id', 'coupon', 'student', 'module', 'course', 'used_at']
+        read_only_fields = ['id', 'used_at']
+
+
 class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
     coupon_code = serializers.CharField(write_only=True, required=False, allow_blank=True)
     course_id = serializers.UUIDField(write_only=True, required=True)
@@ -197,6 +209,46 @@ class CouesEnrollmentSerializer(serializers.ModelSerializer):
         model = CourseEnrollment
         fields = ['id', 'teacher', 'student', 'course', 'status', 'is_active', 'date']
         read_only_fields = ['id', 'date']
+
+
+class StudentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StudentProfile
+        fields = ['full_name', 'profile_picture']
+
+class RatingListSerializer(serializers.ModelSerializer):
+    student = StudentSerializer(read_only=True)
+    class Meta:
+        model = Rating
+        fields = ['id', 'student', 'rating', 'comment', 'created_at']
+        read_only_fields = ['id', 'student', 'created_at']
+
+
+class CourseRatingCreateSerializer(serializers.ModelSerializer):
+    rating = serializers.IntegerField(min_value=1, max_value=5)
+    class Meta:
+        model = Rating
+        fields =['rating', 'comment']
+        
+    def validate_comment(self, value):
+        if len(value) < 3 or len(value) > 500:
+            raise serializers.ValidationError("Comment must be between 3 and 500 characters.")
+        return value
+    
+    def create(self, validated_data):
+        user = self.context['request'].user
+        course_id = self.context.get('course_id')
+        
+        try:
+            student_profile = user.student_profile
+        except AttributeError:
+            raise serializers.ValidationError({'user': 'User is not a student'})
+        
+        course = get_object_or_404(Course, id=course_id)
+        
+        
+        rating = Rating.objects.create(course=course, student=student_profile, **validated_data)
+        return rating
 
 
 class ModuleEnrollmentSerializer(serializers.ModelSerializer):
@@ -586,3 +638,6 @@ class CourseModuleUpdateSerializer(serializers.ModelSerializer):
         if existing.exists():
             raise serializers.ValidationError("There is already a module with this order in the course.")
         return attrs
+
+class EarningSerializer(serializers.Serializer):
+    revenue = serializers.DecimalField(max_digits=10, decimal_places=2)

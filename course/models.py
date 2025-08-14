@@ -6,6 +6,7 @@ from django.utils import timezone
 from .utilis import genrate_coupon_code
 from django.db.models.functions import Coalesce
 from PIL import Image
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 # Create your models here.
 
@@ -283,3 +284,22 @@ class Lesson(models.Model):
     @property
     def teacher(self):
         return self.module.course.teacher
+
+
+class Rating(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='ratings')
+    student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE, related_name='ratings')
+    rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    comment = models.TextField(blank=True, null=True , max_length=500)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('course', 'student')
+        indexes = [
+            models.Index(fields=['rating']),
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.student.user.first_name} rated {self.course.title} - {self.rating}"

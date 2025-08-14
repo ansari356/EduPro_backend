@@ -440,3 +440,45 @@ class CookieTokenRefreshView(APIView):
             secure=False
         )
         return res
+    
+    
+    
+class StudentRefreshView(APIView):
+    permission_classes = [IsAuthenticated, IsStudent]
+
+    def post(self, request, teacher_username):
+        refresh_token = request.COOKIES.get('refresh_token')
+
+        if refresh_token is None:
+            return Response({'error': 'Refresh token not found'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Validate teacher_username first
+        try:
+            teacher = get_object_or_404(User, username=teacher_username, user_type=User.userType.TEACHER)
+            teacher_profile = get_object_or_404(TeacherProfile, user=teacher)
+        except (User.DoesNotExist, TeacherProfile.DoesNotExist):
+            return Response({'error': 'Invalid teacher specified.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Perform student-teacher relationship check if user is authenticated and has a student profile
+        if request.user.is_authenticated and hasattr(request.user, 'student_profile'):
+            student_profile = request.user.student_profile
+            if not TeacherStudentProfile.objects.filter(student=student_profile, teacher=teacher_profile).exists():
+                return Response({'error': 'You are not registered as a student for this teacher.'}, status=status.HTTP_403_FORBIDDEN)
+        # If user is not authenticated or not a student, we skip the student-teacher relationship check.
+        # The token refresh will proceed if the refresh token is valid.
+
+        try:
+            refresh = RefreshToken(refresh_token)
+            access_token = str(refresh.access_token)
+        except TokenError:
+            return Response({'error': 'Invalid or expired refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        res = Response({'message': 'Token refreshed successfully'}, status=status.HTTP_200_OK)
+        res.set_cookie(
+            key='access_token',
+            value=access_token,
+            httponly=True,
+            samesite='Lax',
+            secure=False
+        )
+        return res

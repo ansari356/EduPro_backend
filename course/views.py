@@ -1,26 +1,27 @@
 from django.shortcuts import get_object_or_404
 from numpy import generic
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, viewsets
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
-from .permissions import IsLessonAccessible,IsModuleAccessible,IsModuleOwner,IsCourseOwner,IsTeacher , IsStudent
-from userAuth.models import User
-from .models import CourseCategory, Course, CourseEnrollment,Lesson,CourseModule , Coupon, ModuleEnrollment
+from .permissions import IsLessonAccessible,IsModuleAccessible,IsModuleOwner,IsCourseOwner,IsTeacher , IsStudent, CanRateCourse
+from userAuth.models import User, StudentProfile
+from .models import CourseCategory, Course, CourseEnrollment,Lesson,CourseModule , Coupon, ModuleEnrollment, Rating,CouponUsage
 from .serializer import (CourseCategorySerializer,CourseCategoryCreateSerializer, CourseSerializer,
  CourseCreateSerializer,CouponCreateSerializer,CourseModuleListSerializer,LessonDetailSerializer,
 LessonCreateUpdateSerializer,CourseModuleDetailSerializer,CourseModuleCreateSerializer,
 CourseModuleUpdateSerializer,
 CouponSerializer,
 CourseEnrollmentCreateSerializer,CouesEnrollmentSerializer, ModuleEnrollmentSerializer, ModuleEnrollmentCreateSerializer ,
+ CourseRatingCreateSerializer,RatingListSerializer,EarningSerializer,CouponUsageSerialzier
 )
 from rest_framework.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter , OrderingFilter
 from rest_framework.pagination import PageNumberPagination
 from .utilis import get_vdocipher_video_details
-
-
+from django.db import models
+from userAuth.serializer import StudentProfileSerializer , userSerializer
 
 # Create your views here.
 
@@ -126,7 +127,30 @@ class CourseDeleteAPIView(generics.DestroyAPIView):
         return Course.objects.filter(teacher=self.request.user.teacher_profile)
 
 
+class RatingListAPIView(generics.ListAPIView):
+    serializer_class = RatingListSerializer
+    permission_classes = [permissions.AllowAny]
 
+    def get_queryset(self):
+        course_id = self.kwargs.get('course_id')
+        course = get_object_or_404(Course, id=course_id)
+        qs = Rating.objects.select_related('student' , 'course')
+        return qs.filter(course=course)
+
+class RatingCreateAPIView(generics.CreateAPIView):
+    serializer_class = CourseRatingCreateSerializer
+    permission_classes = [permissions.IsAuthenticated, CanRateCourse]
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['course_id'] = self.kwargs.get('course_id')
+        return context
+
+class RatingRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Rating.objects.select_related('student', 'course').all()
+    permission_classes = [permissions.IsAuthenticated, CanRateCourse]
+    serializer_class = CourseRatingCreateSerializer
+    lookup_field = 'id'
 
 
 
@@ -154,6 +178,30 @@ class CouponListAPIView(generics.ListAPIView):
 
 
 
+class UsedCopunListAPIView(generics.ListAPIView):
+    serializer_class =  CouponUsageSerialzier
+    permission_classes = [IsTeacher]
+    pagination_class = PageNumberPagination
+    PageNumberPagination.page_size = 10
+    
+    def get_queryset(self):
+        user = self.request.user
+        try:
+            return CouponUsage.objects.filter(coupon__teacher=user.teacher_profile).select_related('coupon').order_by('-used_at')
+        except Coupon.DoesNotExist:
+            return Coupon.objects.none()
+
+class RevinewAPIView(generics.RetrieveAPIView):
+    serializer_class = EarningSerializer
+    permission_classes = [IsTeacher]
+    
+    def get(self, request, *args, **kwargs):
+        user = self.request.user
+        if not hasattr(user, 'teacher_profile'):
+            return Response({"error": "You are not a teacher."}, status=status.HTTP_403_FORBIDDEN)
+
+        total_revenue = CouponUsage.objects.filter(coupon__teacher=user.teacher_profile).aggregate(total_revenue=models.Sum('coupon__price'))['total_revenue'] or 0.00
+        return Response({"revenue": total_revenue}, status=status.HTTP_200_OK)
 
 
 class TeacherCouponQuerysetMixin:
@@ -260,6 +308,21 @@ class CoursesFilterSerachAPIView(generics.ListAPIView):
     search_fields = ['title', 'description']
     ordering_fields = ['created_at', 'price', 'total_enrollments']
     
+    
+class GetStudentEnrolledToCourseAPIView(generics.ListAPIView):
+    serializer_class = StudentProfileSerializer
+    permission_classes = [IsTeacher]
+    
+    def get_queryset(self):
+        course_id = self.kwargs.get('course_id')
+        course = get_object_or_404(Course, id=course_id)
+        # Return StudentProfile objects directly
+        return StudentProfile.objects.filter(
+            enrollments__course__teacher=self.request.user.teacher_profile,
+            enrollments__course=course
+        ).select_related('user')
+    
+ 
 # course module views
 
 # course module list view

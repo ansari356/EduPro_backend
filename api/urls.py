@@ -1,11 +1,15 @@
 from django.urls import path
 from userAuth import views as user_views
-from userAuth.views import LoginView, LogoutView, LoginStudentAPIView , CookieTokenRefreshView
+from userAuth.views import LoginView, LogoutView, LoginStudentAPIView , CookieTokenRefreshView,StudentRefreshView
 from course import views as course_views
 from assessments import views as assessments_views
 
-urlpatterns = [
 
+urlpatterns = [
+    # Rating endpoints
+    path('courses/<uuid:course_id>/list-ratings/', course_views.RatingListAPIView.as_view(), name='course-ratings-list'),
+    path('courses/<uuid:course_id>/ratings/create/', course_views.RatingCreateAPIView.as_view(), name='course-ratings-create'),
+    path('course/retrive-upadate-delete-ratings/<uuid:id>/', course_views.RatingRetrieveUpdateDestroyAPIView.as_view(), name='rating-detail'),
 
     # students endpoints
     path('student/student-register/<teacher_username>',user_views.RegisterStudentAPIView.as_view(), name='student_register'),
@@ -20,12 +24,15 @@ urlpatterns = [
     path('teacher/update-profile/', user_views.UpdateTeacherProfileAPIView.as_view(), name='update-teacher-profile'),
     path('teacher/students/remove/<student_id>/', user_views.RemoveStudentAPIView.as_view(), name='teacher-student-remove'),
     path('teacher/get_students/',user_views.GetSudentRelatedToTeacherAPIView.as_view(),name="get-students"),
+     path('teacher/revenue/', course_views.RevinewAPIView.as_view(), name='teacher-revenue'),
+     path('get_student-enrollments/<course_id>', course_views.GetStudentEnrolledToCourseAPIView.as_view(), name='get-student-enrollments'),
     # login paths
     path('teacher/login/', LoginView.as_view()),
     path('student/login/<teacher_username>/', LoginStudentAPIView.as_view(), name='student-login'),
     path('join-teacher/<teacher_username>/', user_views.AuthenticatedJoinTeacherAPIView.as_view(), name='authenticated-join-teacher'),
     path('logout/', LogoutView.as_view()),
     path('token/refresh/', CookieTokenRefreshView.as_view(), name='cookie_token_refresh'),
+     path('student/refresh/<teacher_username>/', StudentRefreshView.as_view(), name='student-refresh'),
     
     # courses endpoint
     path('course/category/create/', course_views.CourseCategoryCreateAPIView.as_view(), name='course-category-create'),
@@ -49,7 +56,7 @@ urlpatterns = [
     path('coupon/detail/<coupon_id>', course_views.CouponDetailAPiView.as_view(), name='coupon-detail'),
     path('coupon/update/<coupon_id>', course_views.CouponUpdateAPIView.as_view(), name='coupon-update'),
     path('coupon/delete/<coupon_id>', course_views.CouponDeleteAPIView.as_view(), name='coupon-delete'),     
-    
+    path('coupon/used-coupons/', course_views.UsedCopunListAPIView.as_view(), name='coupon-usage'),
       # course module
     
     # Course Modules ( under course require(course_id))
@@ -147,4 +154,3 @@ urlpatterns = [
          assessments_views.TeacherGradeAnswerView.as_view(), 
          name='teacher-grade-answer'),
 ]
-
