@@ -49,6 +49,17 @@ class CourseSerializer(serializers.ModelSerializer):
                             'average_rating', 'total_durations']
 
 
+class CourseSerializerForTeacher(serializers.ModelSerializer):
+    category = CourseCategorySerializer(read_only=True)
+    class Meta:
+        model = Course
+        fields = "__all__"
+        read_only_fields = read_only_fields = ['id', 'created_at', 'total_enrollments',
+                            'total_lessons', 'total_reviews', 
+                            'average_rating', 'total_durations',' total_revenue']
+
+
+
 class CourseCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
@@ -147,6 +158,7 @@ class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
             
             if coupon.status == Coupon.CouponType.FULL_ACCSESSED and coupon.price == course.price:
                 CouponUsage.objects.create(coupon=coupon, student=student_profile , course=course)
+                
                 coupon.used_count += 1
                 if coupon.used_count >= coupon.max_uses:
                     coupon.is_active = False
@@ -191,6 +203,8 @@ class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
                             status=CourseEnrollment.EnrollmentStatus.COMPLETED,
                             is_active=True
                         )
+                        course.total_revenue+=course.price
+                        course.save(update_fields=['total_revenue'])
                         return enrollment
             else:
                 enrollment = CourseEnrollment.objects.create(
@@ -314,6 +328,10 @@ class ModuleEnrollmentCreateSerializer(serializers.ModelSerializer):
                         status=ModuleEnrollment.EnrollmentStatus.ACTIVE,
                         is_active=True
                     )
+                    module.course.total_revenue+=module.price
+                    module.course.save(update_fields=['total_revenue'])
+                    
+
                     return enrollment
         elif module.price == 0 or module.is_free:
              enrollment = ModuleEnrollment.objects.create(

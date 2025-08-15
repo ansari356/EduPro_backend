@@ -49,7 +49,7 @@ urlpatterns = [
     path('course/course-enrollment-delete/<course_id>/<enrollment_id>',course_views.CourseEnrollmentDeletAPIView.as_view(),name='course-enrollmnebt-delete'),
     path('course/course-search-filter/',course_views.CoursesFilterSerachAPIView.as_view(),name='course-search-filter'),
     path('course/module-enrollment/',course_views.ModuleEnrollmentAPIView.as_view(),name='module-enrollment'),
-    
+    path('course/private-deatils/<course_id>',course_views.courselistteacher.as_view(),name='module-enrollment-list'),
     # CuponEndpoints
     path('coupon/create/', course_views.CouponCreateAPIView.as_view(), name='coupon-create'),
     path('coupon/list/', course_views.CouponListAPIView.as_view(), name='coupon-list'), 

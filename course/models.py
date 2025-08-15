@@ -37,7 +37,8 @@ class Course(models.Model):
     total_reviews = models.PositiveIntegerField(default=0)
     average_rating = models.DecimalField(max_digits=3, decimal_places=2, default=0.0, null=True, blank=True)
     total_durations = models.PositiveIntegerField(default=0)
-
+    total_revenue = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    
     
     def __str__(self):
         return self.title

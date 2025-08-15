@@ -157,8 +157,8 @@ class BasePagination(PageNumberPagination):
 class GetSudentRelatedToTeacherAPIView(generics.ListAPIView):
     serializer_class = GetStudentRelatedToTeacherSerializer
     permission_classes = [IsTeacher]
-    pagination_class = PageNumberPagination
-    PageNumberPagination.page_size = 5
+    pagination_class = BasePagination
+
     
 
     def get_queryset(self):
@@ -167,7 +167,8 @@ class GetSudentRelatedToTeacherAPIView(generics.ListAPIView):
             teacher_profile = TeacherProfile.objects.get(user=user)
             return TeacherStudentProfile.objects.filter(teacher=teacher_profile).select_related(
                 'student__user'
-            )
+            ).order_by('student__full_name')
+            
         except TeacherProfile.DoesNotExist:
             return TeacherStudentProfile.objects.none()
 
@@ -218,6 +219,7 @@ class PublicTeacherInfo(generics.RetrieveAPIView):
         obj = get_object_or_404(queryset, user=user)
         self.check_object_permissions(self.request, obj)
         return obj
+
 
 
 class UpdateStudentProfileAPIView(generics.UpdateAPIView):
