@@ -79,3 +79,16 @@ def update_course_rating_on_delete(sender, instance, **kwargs):
     course.total_reviews = ratings.count()
     course.average_rating = ratings.aggregate(Avg('rating'))['rating__avg'] or 0
     course.save(update_fields=['total_reviews', 'average_rating'])
+
+
+@receiver(post_save, sender=Course)
+def update_teacher_rating(sender, instance, **kwargs):
+    teacher = instance.teacher
+    courses = Course.objects.filter(teacher=teacher).exclude(average_rating=0)
+    
+    if courses.exists():
+        teacher.rating = courses.aggregate(Avg('average_rating'))['average_rating__avg']
+    else:
+        teacher.rating = 0
+        
+    teacher.save(update_fields=['rating'])

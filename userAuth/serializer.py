@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from .models import User , StudentProfile , TeacherProfile, TeacherStudentProfile
 from django.db import transaction
-
+from course.models import Course
 class RegisterSerializer(serializers.ModelSerializer):
     password1 = serializers.CharField(write_only=True,required=True,validators=[validate_password])
     password2 = serializers.CharField(write_only=True,required=True)
@@ -28,7 +28,12 @@ class RegisterSerializer(serializers.ModelSerializer):
     def validate_phone(self,value):
         if User.objects.filter(phone=value).exists():
             raise serializers.ValidationError('phone already exists')
+
+        if not value.isdigit():
+            raise serializers.ValidationError('Phone must be a number')
         return value
+
+
     
     
     def validate_user_type(self, value):
@@ -79,6 +84,9 @@ class StudentRegistrationSerializer(serializers.ModelSerializer):
     def validate_phone(self, value):
         if User.objects.filter(phone=value).exists():
             raise serializers.ValidationError('Phone already exists')
+        
+        if not value.isdigit():
+            raise serializers.ValidationError('Phone must be a number')
         return value
 
     def validate_username(self,value):
@@ -147,6 +155,8 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
     user = UserInfoSerializer(read_only=True)
     number_of_students = serializers.SerializerMethodField()
     number_of_courses = serializers.SerializerMethodField()
+
+
     class Meta:
         model = TeacherProfile
         # fields = ['user', 'id', 'full_name', 'bio', 'profile_picture', 'date_of_birth', 'address', 'country', 'city', 'number_of_courses', 'specialization', 'institution', 'experiance', 'number_of_students', 'rating', 'gender','created_at', 'logo', 'primary_color', 'primary_color_light', 'primary_color_dark', 'secondary_color', 'accent_color', 'background_color']
@@ -162,25 +172,15 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
         # Check if the value was annotated by the view
         if hasattr(obj, 'courses_count'):
             return obj.courses_count
-        
-        # Fallback for safety, though it's less efficient.
-        # This should ideally not be hit if views are optimized.
-        from course.models import Course
         return Course.objects.filter(teacher=obj).count()
 
 
-
 class GetStudentRelatedToTeacherSerializer(serializers.ModelSerializer):
-    students = serializers.SerializerMethodField()
+    student = StudentProfileSerializer(read_only=True)
 
     class Meta:
-        model = TeacherProfile
-        fields = ['students']
-
-    def get_students(self, obj):
-        relations = obj.student_relations.all()
-        student_profiles = [relation.student for relation in relations]
-        return StudentProfileSerializer(student_profiles, many=True).data
+        model = TeacherStudentProfile
+        fields = ['student']
 
 
 class LoginSerializer(serializers.Serializer):
@@ -235,6 +235,8 @@ class TeacherStudentProfileSerializer(serializers.ModelSerializer):
         # Fallback for safety, though it's less efficient.
         # This should ideally not be hit if views are optimized.
         return obj.student.enrollments.filter(course__teacher=obj.teacher).count()
+    
+
 
 
 

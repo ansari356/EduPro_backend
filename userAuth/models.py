@@ -4,6 +4,8 @@ import uuid
 from django.utils.text import slugify
 from django.utils import timezone
 from datetime import timedelta
+from django.db.models import Avg
+
 
 # Create your models here.
 
@@ -76,6 +78,9 @@ class StudentProfile(models.Model):
         if not self.full_name:
             if self.user.user_type == User.userType.STUDENT:
                 self.full_name = f'{self.user.first_name} {self.user.last_name}'
+        
+        if self.user.avatar:
+            self.profile_picture = self.user.avatar
         super(StudentProfile, self).save(*args, **kwargs)
     
     @property
@@ -123,14 +128,14 @@ class TeacherProfile(models.Model):
         
         if self.user.user_type == User.userType.TEACHER:
             self.number_of_students = self.student_relations.count()
-            
-        
-        super(TeacherProfile, self).save(*args, **kwargs)
-        
-        
-        
-        
 
+        if self.user.avatar:
+            self.profile_picture = self.user.avatar
+
+        if self.user.logo:
+            self.logo = self.user.logo
+
+        super(TeacherProfile, self).save(*args, **kwargs)
 class TeacherStudentProfile(models.Model):
     teacher = models.ForeignKey(TeacherProfile, on_delete=models.CASCADE, related_name='student_relations')
     student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE, related_name='teacher_relations')
