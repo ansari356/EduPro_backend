@@ -168,10 +168,43 @@ class GetSudentRelatedToTeacherAPIView(generics.ListAPIView):
             teacher_profile = TeacherProfile.objects.get(user=user)
             return TeacherStudentProfile.objects.filter(teacher=teacher_profile).select_related(
                 'student__user'
-            )
+            ).order_by('student__full_name')
+            
         except TeacherProfile.DoesNotExist:
             return TeacherStudentProfile.objects.none()
 
+
+class ToggleBlockStudentAPIView(APIView):
+    """
+    A view for a teacher to toggle the block status of a student.
+    This action flips the 'is_active' flag on the TeacherStudentProfile.
+    """
+    permission_classes = [IsTeacher]
+
+    def patch(self, request, *args, **kwargs):
+        teacher_profile = request.user.teacher_profile
+        student_id = self.kwargs.get('student_id')
+        student_profile = get_object_or_404(StudentProfile, user__id=student_id)
+        if not student_id:
+            raise ValidationError({'student_id': 'Student ID is required in the URL.'})
+
+        # Retrieve the specific student-teacher relationship instance
+        instance = get_object_or_404(
+            TeacherStudentProfile,
+            teacher=teacher_profile,
+            student=student_profile,
+        )
+
+        instance.is_active = not instance.is_active
+        instance.save(update_fields=['is_active'])
+
+        if instance.is_active:
+            message = "Student has been unblocked."
+        else:
+            message = "Student has been blocked."
+
+        return Response({"message": message}, status=status.HTTP_200_OK)
+        
 
 class GetTeacherProfileAPIView(generics.RetrieveAPIView):
     serializer_class = TeacherProfileSerializer
@@ -219,6 +252,37 @@ class PublicTeacherInfo(generics.RetrieveAPIView):
         return obj
 
 
+
+class GetStudentProfileAssositedWithTeacherAPIView(generics.RetrieveAPIView):
+    serializer_class = TeacherStudentProfileSerializer
+    permission_classes = [IsTeacher]
+
+    def get_object(self):
+        user = self.request.user
+        teacher_profile = get_object_or_404(TeacherProfile, user=user)
+        student_id = self.kwargs.get('student_id')
+
+        if not student_id:
+            raise ValidationError({'student_id': 'student id is required'})
+
+        student_profile = get_object_or_404(StudentProfile, user__id=student_id)
+
+        queryset = TeacherStudentProfile.objects.select_related(
+            'student__user', 'teacher__user'
+        ).annotate(
+            enrollment_courses_count=Count(
+                'student__enrollments',
+                filter=Q(student__enrollments__course__teacher=teacher_profile)
+            )
+        )
+
+        obj = get_object_or_404(
+            queryset,
+            student=student_profile,
+            teacher=teacher_profile
+        )
+        self.check_object_permissions(self.request, obj)
+        return obj
 class UpdateStudentProfileAPIView(generics.UpdateAPIView):
     serializer_class = StudentProfileSerializer
     permission_classes = [IsStudent]

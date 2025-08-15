@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CourseCategory, Course, CourseEnrollment , Coupon ,CouponUsage,CourseModule,Lesson, ModuleEnrollment,Rating 
+from .models import CourseCategory, Course, CourseEnrollment , Coupon ,CouponUsage,CourseModule,Lesson, ModuleEnrollment,Rating,StudentLessonProgress
 
 # Register your models here.
 
@@ -59,6 +59,12 @@ class LessonAdmin(admin.ModelAdmin):
     list_filter = ('title','module')
     search_fields = ('title','module')
 admin.site.register(Lesson, LessonAdmin)
+
+class StudentLessonProgressAdmin(admin.ModelAdmin):
+    list_display =['id','student','lesson','is_completed']
+    list_filter = ('student','is_completed','lesson')
+    search_fields = ('student','is_completed','lesson')
+admin.site.register(StudentLessonProgress, StudentLessonProgressAdmin)
 
 class ModuleEnrollmentAdmin(admin.ModelAdmin):
     list_display = ('id','student', 'module', 'status',  'enrollment_date','ended_date')
