@@ -175,7 +175,7 @@ class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
                     if self._validate_and_use_coupon(coupon_code, course, student_profile):
                         existing_enrollment.access_type = CourseEnrollment.AccessType.FULL_ACCESS
                         existing_enrollment.status = CourseEnrollment.EnrollmentStatus.COMPLETED
-                        existing_enrollment.save()
+                        existing_enrollment.save(update_fields=['access_type', 'status'])
                         return existing_enrollment
             else:
                 raise serializers.ValidationError({'student': 'Student already enrolled in this course with no access. Provide a coupon to upgrade.'})

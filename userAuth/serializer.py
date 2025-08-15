@@ -176,16 +176,11 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
 
 
 class GetStudentRelatedToTeacherSerializer(serializers.ModelSerializer):
-    students = serializers.SerializerMethodField()
+    student = StudentProfileSerializer(read_only=True)
 
     class Meta:
-        model = TeacherProfile
-        fields = ['students']
-
-    def get_students(self, obj):
-        relations = obj.student_relations.all()
-        student_profiles = [relation.student for relation in relations]
-        return StudentProfileSerializer(student_profiles, many=True).data
+        model = TeacherStudentProfile
+        fields = ['student']
 
 
 class LoginSerializer(serializers.Serializer):

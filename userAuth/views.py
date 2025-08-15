@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import authenticate
-
+from rest_framework.pagination import PageNumberPagination
 # Create your views here.
 class RegisterAPIView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
@@ -160,15 +160,19 @@ class GetStudentProfileAPIView(generics.RetrieveAPIView):
 class GetSudentRelatedToTeacherAPIView(generics.ListAPIView):
     serializer_class = GetStudentRelatedToTeacherSerializer
     permission_classes = [IsTeacher]
+    pagination_class = PageNumberPagination
+    PageNumberPagination.page_size = 5
+    
 
     def get_queryset(self):
         user = self.request.user
         try:
-         return TeacherProfile.objects.filter(user=user).prefetch_related(
-            'student_relations__student__user'
+            teacher_profile = TeacherProfile.objects.get(user=user)
+            return TeacherStudentProfile.objects.filter(teacher=teacher_profile).select_related(
+                'student__user'
             )
         except TeacherProfile.DoesNotExist:
-            return TeacherProfile.objects.none()
+            return TeacherStudentProfile.objects.none()
 
         
         
