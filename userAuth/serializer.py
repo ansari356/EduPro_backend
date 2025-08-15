@@ -176,11 +176,10 @@ class TeacherProfileSerializer(serializers.ModelSerializer):
 
 
 class GetStudentRelatedToTeacherSerializer(serializers.ModelSerializer):
-    students = serializers.SerializerMethodField()
-
+    student = StudentProfileSerializer()
     class Meta:
-        model = TeacherProfile
-        fields = ['students']
+        model = TeacherStudentProfile
+        fields = "__all__"
 
     def get_students(self, obj):
         relations = obj.student_relations.all()

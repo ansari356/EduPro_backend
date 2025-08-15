@@ -9,6 +9,7 @@ from .models import User , StudentProfile , TeacherProfile, TeacherStudentProfil
 from course.permissions import IsStudent , IsTeacher
 from django.db.models import Count, Q
 from rest_framework.views import APIView
+from rest_framework.pagination import PageNumberPagination
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import authenticate
@@ -65,10 +66,6 @@ class RegisterStudentAPIView(generics.CreateAPIView):
             }, status=201)
 
 
-
-
-
-
 class AuthenticatedJoinTeacherAPIView(generics.CreateAPIView):
     serializer_class = JoinAuthenticatedStudent
     permission_classes = [IsStudent]
@@ -118,10 +115,7 @@ class AuthenticatedJoinTeacherAPIView(generics.CreateAPIView):
                 {'info': 'Student is already associated with this teacher.'},
                 status=status.HTTP_200_OK
             )
-        
-    
-        
-        
+
 
 class GetStudentProfileAPIView(generics.RetrieveAPIView):
     serializer_class = TeacherStudentProfileSerializer
@@ -156,22 +150,20 @@ class GetStudentProfileAPIView(generics.RetrieveAPIView):
         self.check_object_permissions(self.request, obj)
         return obj
 
+class BasePagination(PageNumberPagination):
+    page_size = 1
+
 
 class GetSudentRelatedToTeacherAPIView(generics.ListAPIView):
     serializer_class = GetStudentRelatedToTeacherSerializer
     permission_classes = [IsTeacher]
+    pagination_class = BasePagination
 
     def get_queryset(self):
-        user = self.request.user
-        try:
-         return TeacherProfile.objects.filter(user=user).prefetch_related(
-            'student_relations__student__user'
-            )
-        except TeacherProfile.DoesNotExist:
-            return TeacherProfile.objects.none()
+        return TeacherStudentProfile.objects.filter(
+            teacher__user=self.request.user
+        )
 
-        
-        
 
 class GetTeacherProfileAPIView(generics.RetrieveAPIView):
     serializer_class = TeacherProfileSerializer
@@ -190,7 +182,6 @@ class GetTeacherProfileAPIView(generics.RetrieveAPIView):
         obj = get_object_or_404(queryset, user=user)
         self.check_object_permissions(self.request, obj)
         return obj
-
 
 
 class PublicTeacherInfo(generics.RetrieveAPIView):
@@ -219,7 +210,7 @@ class PublicTeacherInfo(generics.RetrieveAPIView):
         self.check_object_permissions(self.request, obj)
         return obj
 
-   
+
 class UpdateStudentProfileAPIView(generics.UpdateAPIView):
     serializer_class = StudentProfileSerializer
     permission_classes = [IsStudent]
@@ -230,10 +221,8 @@ class UpdateStudentProfileAPIView(generics.UpdateAPIView):
             return get_object_or_404(StudentProfile.objects.select_related('user'), user=user)
         else:
             raise PermissionDenied("You are not a Student.")
-        
-        
-    
-    
+
+
 class UpdateTeacherProfileAPIView(generics.UpdateAPIView):
     serializer_class = TeacherProfileSerializer
     permission_classes = [IsTeacher]
@@ -414,7 +403,6 @@ class LogoutView(APIView):
             return Response({"error": "An unexpected error occurred during logout."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-
 # refresh token view (cokkies)
 class CookieTokenRefreshView(APIView):
     permission_classes = [AllowAny]
@@ -440,9 +428,8 @@ class CookieTokenRefreshView(APIView):
             secure=False
         )
         return res
-    
-    
-    
+
+
 class StudentRefreshView(APIView):
     permission_classes = [IsAuthenticated, IsStudent]
 
