@@ -23,6 +23,7 @@ urlpatterns = [
     
     path('teacher/update-profile/', user_views.UpdateTeacherProfileAPIView.as_view(), name='update-teacher-profile'),
     path('teacher/students/remove/<student_id>/', user_views.RemoveStudentAPIView.as_view(), name='teacher-student-remove'),
+    path('teacher/students/toggle-block/<student_id>/', user_views.ToggleBlockStudentAPIView.as_view(), name='teacher-student-toggle-block'),
     path('teacher/get_students/',user_views.GetSudentRelatedToTeacherAPIView.as_view(),name="get-students"),
      path('teacher/revenue/', course_views.RevinewAPIView.as_view(), name='teacher-revenue'),
      path('get_student-enrollments/<course_id>', course_views.GetStudentEnrolledToCourseAPIView.as_view(), name='get-student-enrollments'),

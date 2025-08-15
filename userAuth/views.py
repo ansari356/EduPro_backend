@@ -172,7 +172,37 @@ class GetSudentRelatedToTeacherAPIView(generics.ListAPIView):
         except TeacherProfile.DoesNotExist:
             return TeacherStudentProfile.objects.none()
 
-        
+
+class ToggleBlockStudentAPIView(APIView):
+    """
+    A view for a teacher to toggle the block status of a student.
+    This action flips the 'is_active' flag on the TeacherStudentProfile.
+    """
+    permission_classes = [IsTeacher]
+
+    def patch(self, request, *args, **kwargs):
+        teacher_profile = request.user.teacher_profile
+        student_id = self.kwargs.get('student_id')
+        student_profile = get_object_or_404(StudentProfile, user__id=student_id)
+        if not student_id:
+            raise ValidationError({'student_id': 'Student ID is required in the URL.'})
+
+        # Retrieve the specific student-teacher relationship instance
+        instance = get_object_or_404(
+            TeacherStudentProfile,
+            teacher=teacher_profile,
+            student=student_profile,
+        )
+
+        instance.is_active = not instance.is_active
+        instance.save(update_fields=['is_active'])
+
+        if instance.is_active:
+            message = "Student has been unblocked."
+        else:
+            message = "Student has been blocked."
+
+        return Response({"message": message}, status=status.HTTP_200_OK)
         
 
 class GetTeacherProfileAPIView(generics.RetrieveAPIView):
@@ -219,7 +249,6 @@ class PublicTeacherInfo(generics.RetrieveAPIView):
         obj = get_object_or_404(queryset, user=user)
         self.check_object_permissions(self.request, obj)
         return obj
-
 
 
 class UpdateStudentProfileAPIView(generics.UpdateAPIView):
