@@ -79,12 +79,17 @@ urlpatterns = [
     path('lessons/<uuid:id>/', course_views.LessonDetailView.as_view(), name='lesson-detail'),             # GET: retrieve lesson
     path('lessons/<uuid:id>/update/', course_views.LessonUpdateView.as_view(), name='lesson-update'),      # PUT/PATCH: update lesson
     path('lessons/<uuid:id>/delete/', course_views.LessonDeleteView.as_view(), name='lesson-delete'),      # DELETE: delete lesson
-    
+    # progress
+    path('lessons/<uuid:id>/complete/', course_views.UpdateLessonProgressView.as_view(), name='lesson-progress-create'),
     # video status check
     path('video/check-status/<lesson_id>', course_views.CheckVideoStatusAPIView.as_view(), name='check-video-status'),
     
       # Assessment CRUD
-    path('teacher/assessments/', 
+     path('teacher/assessments/', 
+         assessments_views.TeacherAssessmentListCreateView.as_view(), 
+         name='teacher-assessment-list-create'), 
+     
+    path('teacher/courses/<uuid:course_id>/assessments/', 
          assessments_views.TeacherAssessmentListCreateView.as_view(), 
          name='teacher-assessment-list-create'),
     
@@ -146,6 +151,22 @@ urlpatterns = [
     # all questions that need to manual grading
     # additional filters (assessment_id,assessment_type,question_type)
     path('teacher/grading/pending/', 
+         assessments_views.TeacherPendingGradingListView.as_view(), 
+         name='teacher-pending-grading-list'),
+    
+    path('teacher/courses/<uuid:course_id>/grading/pending/', 
+         assessments_views.TeacherPendingGradingListView.as_view(), 
+         name='teacher-pending-grading-list'),
+    
+    path('teacher/assessments/<uuid:assessment_id>/grading/pending/', 
+         assessments_views.TeacherPendingGradingListView.as_view(), 
+         name='teacher-pending-grading-list'),
+    
+    path('teacher/assessments/<str:assessment_type>/grading/pending/', 
+         assessments_views.TeacherPendingGradingListView.as_view(), 
+         name='teacher-pending-grading-list'),
+    
+    path('teacher/assessments/questions/<str:question_type>/grading/pending/', 
          assessments_views.TeacherPendingGradingListView.as_view(), 
          name='teacher-pending-grading-list'),
     

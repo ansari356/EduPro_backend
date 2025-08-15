@@ -3,7 +3,7 @@ from django.db import models
 from userAuth.models import  StudentProfile , TeacherProfile
 import uuid
 from django.utils import timezone
-from .utilis import genrate_coupon_code
+from .utilis import genrate_coupon_code,create_lesson_progress_for_access
 from django.db.models.functions import Coalesce
 from PIL import Image
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -29,7 +29,7 @@ class Course(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     is_published= models.BooleanField(default=True)
     is_free  = models.BooleanField(default=False)
-    category = models.ForeignKey(CourseCategory, on_delete=models.CASCADE, related_name='courses')
+    category = models.ForeignKey(CourseCategory, on_delete=models.CASCADE, related_name='courses',null=True,blank=True)
     thumbnail = models.ImageField(upload_to='course_thumbnails/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     total_enrollments = models.PositiveIntegerField(default=0)
@@ -91,9 +91,13 @@ class CourseEnrollment(models.Model):
         return f'{self.student.user.first_name} enrolled in {self.course.title}'
 
     def save(self, *args, **kwargs):
+        creating = self._state.adding
         if not self.ended_date:
             self.ended_date = timezone.now() + timedelta(days=30)
         super().save(*args, **kwargs)
+        
+        if creating and self.access_type==self.AccessType.FULL_ACCESS and self.is_active:
+            create_lesson_progress_for_access(student=self.student,course=self.course)
 
 class Coupon(models.Model):
     class CouponType(models.TextChoices):
@@ -215,11 +219,13 @@ class ModuleEnrollment(models.Model):
         return f'{self.student.user.first_name} enrolled in {self.module.title}'
 
     def save(self, *args, **kwargs):
+        creating=self._state.adding
         if not self.ended_date:
             self.ended_date = timezone.now() + timedelta(days=30)
         super().save(*args, **kwargs)
     
-    
+        if creating and self.status==self.EnrollmentStatus.ACTIVE and self.is_active:
+            create_lesson_progress_for_access(student=self.student,module=self.module)
     
 class Lesson(models.Model):
     class VideoProcessingStatus(models.TextChoices):
@@ -286,7 +292,17 @@ class Lesson(models.Model):
     def teacher(self):
         return self.module.course.teacher
 
-
+class StudentLessonProgress(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
+    student=models.ForeignKey(StudentProfile,on_delete=models.CASCADE,related_name='lessons_progress')
+    lesson=models.ForeignKey('Lesson', on_delete=models.CASCADE,related_name='students_progress')
+    is_completed=models.BooleanField(default=False)
+    
+    def __str__(self):
+        return f"{self.student.user.username} - {self.lesson.title} - {self.is_completed}"
+    
+    class Meta:
+        unique_together = ('student', 'lesson') 
 class Rating(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='ratings')

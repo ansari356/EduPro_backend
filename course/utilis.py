@@ -127,3 +127,21 @@ def delete_vdocipher_video(video_id):
     except requests.exceptions.RequestException as e:
         logger.error(f"Failed to delete video from VdoCipher for video_id {video_id}: {e}")
         return None
+
+
+def create_lesson_progress_for_access(student, course=None, module=None):
+    from .models import StudentLessonProgress, Lesson
+
+    lessons_qs = Lesson.objects.none()
+
+    if course:
+        lessons_qs = Lesson.objects.filter(module__course=course)
+    
+    elif module:
+        lessons_qs = Lesson.objects.filter(module=module)
+
+    if lessons_qs.exists():
+        StudentLessonProgress.objects.bulk_create(
+            [StudentLessonProgress(student=student, lesson=lesson) for lesson in lessons_qs],
+            ignore_conflicts=True
+        )
