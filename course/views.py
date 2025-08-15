@@ -14,7 +14,7 @@ CourseModuleUpdateSerializer,
 CouponSerializer,
 CourseEnrollmentCreateSerializer,CouesEnrollmentSerializer, ModuleEnrollmentSerializer, ModuleEnrollmentCreateSerializer ,
  CourseRatingCreateSerializer,RatingListSerializer,EarningSerializer,CouponUsageSerialzier,
- CourseSerializerForTeacher
+ CourseSerializerForTeacher,StudentLessonProgressSerilaizer
 )
 from rest_framework.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
