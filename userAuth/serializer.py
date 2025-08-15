@@ -180,7 +180,7 @@ class GetStudentRelatedToTeacherSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TeacherStudentProfile
-        fields = ['student']
+        fields = "__all__"
 
 
 class LoginSerializer(serializers.Serializer):

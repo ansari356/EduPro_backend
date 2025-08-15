@@ -151,15 +151,16 @@ class GetStudentProfileAPIView(generics.RetrieveAPIView):
         return obj
 
 class BasePagination(PageNumberPagination):
-    page_size = 1
+    page_size = 5
 
 
 class GetSudentRelatedToTeacherAPIView(generics.ListAPIView):
     serializer_class = GetStudentRelatedToTeacherSerializer
     permission_classes = [IsTeacher]
-    pagination_class = BasePagination
-
+    pagination_class = PageNumberPagination
+    PageNumberPagination.page_size = 5
     
+    pagination_class = BasePagination
 
     def get_queryset(self):
         user = self.request.user
