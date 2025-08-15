@@ -8,7 +8,7 @@ from django.db import models
 from userAuth.models import TeacherProfile
 from django.utils import timezone
 from assessments.serializers import AssessmentRetrieveSerializer
-
+from course.models import Course
 from rest_framework.permissions import IsAuthenticated
 from course.permissions import IsStudent,IsTeacher
 from .permissions import (IsStudentEnrolledAndAssessmentAvailable,CanSubmitAttempt,IsTeacherAndAssessmentOwner,
@@ -35,9 +35,19 @@ class TeacherAssessmentListCreateView(generics.ListCreateAPIView):
     """
     permission_classes = [IsAuthenticated, IsTeacherAndAssessmentOwner]
     def get_queryset(self):
-        return Assessment.objects.filter(
-            teacher=self.request.user.teacher_profile
-        ).order_by('-created_at')
+        teacher = self.request.user.teacher_profile
+        queryset = Assessment.objects.filter(teacher=teacher).order_by('-created_at')
+        course_id = self.kwargs.get('course_id') or self.request.query_params.get('course_id')
+        
+        if course_id:
+            course = get_object_or_404(Course, id=course_id, teacher=teacher)
+            queryset = queryset.filter(
+                Q(course=course) |
+                Q(module__course=course) |
+                Q(lesson__module__course=course)
+            )
+        
+        return queryset
     
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -184,6 +194,14 @@ class StudentAssessmentListView(generics.ListAPIView):
             )
         ).distinct().order_by('-created_at')
 
+        course_id = self.kwargs.get('course_id') or self.request.query_params.get('course_id')
+        if course_id:
+            assessments = assessments.filter(
+                Q(course_id=course_id) |
+                Q(module__course_id=course_id) |
+                Q(lesson__module__course_id=course_id)
+            )
+            
         return assessments
 
     
@@ -308,6 +326,14 @@ class StudentAssessmentAttemptListView(generics.ListAPIView):
             )
         ).order_by('-started_at')
 
+        course_id = self.kwargs.get('course_id') or self.request.query_params.get('course_id')
+        if course_id:
+            queryset = queryset.filter(
+                Q(assessment__course_id=course_id) |
+                Q(assessment__module__course_id=course_id) |
+                Q(assessment__lesson__module__course_id=course_id)
+            )
+        
         attempts_with_ungraded = []
         for attempt in queryset:
             ungraded_exists = attempt.answers.filter(
@@ -362,6 +388,15 @@ class TeacherPendingGradingListView(generics.ListAPIView):
             'question__assessment',
             'question'
         ).order_by('attempt__ended_at')
+        
+        course_id = self.kwargs.get('course_id') or self.request.query_params.get('course_id')
+        if course_id:
+            course = get_object_or_404(Course, id=course_id, teacher=teacher)
+            queryset = queryset.filter(
+                Q(question__assessment__course=course) |
+                Q(question__assessment__module__course=course) |
+                Q(question__assessment__lesson__module__course=course)
+            )
         
         # Optional filters
         assessment_id = self.request.query_params.get('assessment_id')
