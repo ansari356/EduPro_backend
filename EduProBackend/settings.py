@@ -217,7 +217,7 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(hour=0, minute=0),  
     },
      'check-expired-attempts': {
-        'task': 'assessment.tasks.expire_old_attempts',
+        'task': 'assessments.tasks.expire_old_attempts',
         'schedule': crontab(minute='*'),
     },
 }
