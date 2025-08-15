@@ -251,6 +251,37 @@ class PublicTeacherInfo(generics.RetrieveAPIView):
         return obj
 
 
+
+class GetStudentProfileAssositedWithTeacherAPIView(generics.RetrieveAPIView):
+    serializer_class = TeacherStudentProfileSerializer
+    permission_classes = [IsTeacher]
+
+    def get_object(self):
+        user = self.request.user
+        teacher_profile = get_object_or_404(TeacherProfile, user=user)
+        student_id = self.kwargs.get('student_id')
+
+        if not student_id:
+            raise ValidationError({'student_id': 'student id is required'})
+
+        student_profile = get_object_or_404(StudentProfile, user__id=student_id)
+
+        queryset = TeacherStudentProfile.objects.select_related(
+            'student__user', 'teacher__user'
+        ).annotate(
+            enrollment_courses_count=Count(
+                'student__enrollments',
+                filter=Q(student__enrollments__course__teacher=teacher_profile)
+            )
+        )
+
+        obj = get_object_or_404(
+            queryset,
+            student=student_profile,
+            teacher=teacher_profile
+        )
+        self.check_object_permissions(self.request, obj)
+        return obj
 class UpdateStudentProfileAPIView(generics.UpdateAPIView):
     serializer_class = StudentProfileSerializer
     permission_classes = [IsStudent]

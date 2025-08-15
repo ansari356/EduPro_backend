@@ -27,6 +27,7 @@ urlpatterns = [
     path('teacher/get_students/',user_views.GetSudentRelatedToTeacherAPIView.as_view(),name="get-students"),
      path('teacher/revenue/', course_views.RevinewAPIView.as_view(), name='teacher-revenue'),
      path('get_student-enrollments/<course_id>', course_views.GetStudentEnrolledToCourseAPIView.as_view(), name='get-student-enrollments'),
+     path('teacher/get-student-profile/<student_id>', user_views.GetStudentProfileAssositedWithTeacherAPIView.as_view(), name='get-student-profile-by-id'),
     # login paths
     path('teacher/login/', LoginView.as_view()),
     path('student/login/<teacher_username>/', LoginStudentAPIView.as_view(), name='student-login'),
