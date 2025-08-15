@@ -6,13 +6,13 @@ from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
 from .permissions import IsLessonAccessible,IsModuleAccessible,IsModuleOwner,IsCourseOwner,IsTeacher , IsStudent, CanRateCourse
 from userAuth.models import User, StudentProfile
-from .models import CourseCategory, Course, CourseEnrollment,Lesson,CourseModule , Coupon, ModuleEnrollment, Rating,CouponUsage
+from .models import CourseCategory, Course, CourseEnrollment,Lesson,CourseModule , Coupon, ModuleEnrollment, Rating,CouponUsage,StudentLessonProgress
 from .serializer import (CourseCategorySerializer,CourseCategoryCreateSerializer, CourseSerializer,
  CourseCreateSerializer,CouponCreateSerializer,CourseModuleListSerializer,LessonDetailSerializer,
 LessonCreateUpdateSerializer,CourseModuleDetailSerializer,CourseModuleCreateSerializer,
 CourseModuleUpdateSerializer,
 CouponSerializer,
-CourseEnrollmentCreateSerializer,CouesEnrollmentSerializer, ModuleEnrollmentSerializer, ModuleEnrollmentCreateSerializer ,
+CourseEnrollmentCreateSerializer,CouesEnrollmentSerializer, ModuleEnrollmentSerializer, ModuleEnrollmentCreateSerializer ,StudentLessonProgressSerilaizer,
  CourseRatingCreateSerializer,RatingListSerializer,EarningSerializer,CouponUsageSerialzier
 )
 from rest_framework.exceptions import ValidationError
@@ -540,9 +540,6 @@ class LessonDeleteView(generics.DestroyAPIView):
         self.perform_destroy(instance)
         return Response({"detail": "Lesson deleted successfully."}, status=status.HTTP_200_OK)
 
-
-
-
 class ModuleEnrollmentAPIView(generics.CreateAPIView):
     """ post api for module enrollment return status_code 201 Created """
     serializer_class = ModuleEnrollmentCreateSerializer
@@ -586,3 +583,16 @@ class CheckVideoStatusAPIView(generics.GenericAPIView):
             return Response({"message": "video is uploading"}, status=status.HTTP_200_OK)
 
         return Response({"message": f"Video status: {video_status}"}, status=status.HTTP_200_OK)
+
+# student lesson progress
+class UpdateLessonProgressView(generics.UpdateAPIView):
+    serializer_class = StudentLessonProgressSerilaizer
+    permission_classes = [permissions.IsAuthenticated, IsLessonAccessible]
+
+    def get_object(self):
+        lesson_id = self.kwargs.get('id')
+        return get_object_or_404(
+            StudentLessonProgress,
+            student=self.request.user.student_profile,
+            lesson_id=lesson_id
+        )

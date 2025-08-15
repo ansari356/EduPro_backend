@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.shortcuts import  get_object_or_404
 from moviepy.video.io.VideoFileClip import VideoFileClip
-from .models import CourseCategory , Course , CourseEnrollment , Coupon , CouponUsage,Lesson,CourseModule, ModuleEnrollment,Rating
+from .models import CourseCategory , Course , CourseEnrollment , Coupon , CouponUsage,Lesson,CourseModule, ModuleEnrollment,Rating,StudentLessonProgress
 from userAuth.models import StudentProfile
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -500,16 +500,13 @@ class LessonCreateUpdateSerializer(serializers.ModelSerializer):
             
         return instance
 
-
-
-
-
-
-
-
-
     
-    
+class StudentLessonProgressSerilaizer(serializers.ModelSerializer):
+    class Meta:
+        model=StudentLessonProgress
+        fields=['id','is_completed']
+        read_only_fields=['id']
+            
 # course module serializers
 
 # To display the list of modules (light display without much detail).
