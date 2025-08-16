@@ -14,6 +14,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import authenticate
 from rest_framework.pagination import PageNumberPagination
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter , OrderingFilter
 # Create your views here.
 class RegisterAPIView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
@@ -157,10 +159,12 @@ class BasePagination(PageNumberPagination):
 class GetSudentRelatedToTeacherAPIView(generics.ListAPIView):
     serializer_class = GetStudentRelatedToTeacherSerializer
     permission_classes = [IsTeacher]
-    pagination_class = PageNumberPagination
-    PageNumberPagination.page_size = 5
-    
     pagination_class = BasePagination
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['is_active',]
+    ordering_fields = ['enrollment_date ', 'student__full_name']
+    search_fields = ['student__user__username', 'student__user__email', 'student__full_name']
+
 
     def get_queryset(self):
         user = self.request.user
@@ -256,7 +260,7 @@ class PublicTeacherInfo(generics.RetrieveAPIView):
 class GetStudentProfileAssositedWithTeacherAPIView(generics.RetrieveAPIView):
     serializer_class = TeacherStudentProfileSerializer
     permission_classes = [IsTeacher]
-
+ 
     def get_object(self):
         user = self.request.user
         teacher_profile = get_object_or_404(TeacherProfile, user=user)

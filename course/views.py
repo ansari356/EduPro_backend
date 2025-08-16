@@ -98,7 +98,19 @@ class CourseListForTeacherAPIView(generics.ListAPIView):
     def get_queryset(self):
         teacher_username = self.kwargs.get('teacher_username')
         user = get_object_or_404(User, username=teacher_username)
-        return Course.objects.filter(teacher=user.teacher_profile).select_related('category').order_by('-created_at')
+        return Course.objects.filter(teacher=user.teacher_profile, is_published=True).select_related('category').order_by('-created_at')
+
+
+class CourseSpacificToTeacherApiView(generics.ListAPIView):
+    serializer_class = CourseSerializer
+    permission_classes = [IsTeacher]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if hasattr(user, 'teacher_profile'):
+            return Course.objects.filter(teacher=user.teacher_profile).select_related('category').order_by('-created_at')
+        return Course.objects.none()
+
 
 class CourseDetailAPIView(generics.RetrieveAPIView):
     serializer_class = CourseSerializer

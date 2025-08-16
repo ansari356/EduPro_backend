@@ -697,6 +697,72 @@ EduPro API uses token-based authentication via cookies.
     }
     ```
 
+#### 1.16. Get Students Related to Teacher (with filtering, searching, and ordering)
+- **URL**: `/api/v1/teacher/get_students/`
+- **Method**: `GET`
+- **Permissions**: `IsTeacher`
+- **Description**: Retrieves a paginated list of students associated with the authenticated teacher. This endpoint supports filtering by `is_active` status, searching by student's username, email, or full name, and ordering by `enrollment_date` or `student__full_name`.
+- **Query Parameters**:
+    - `page`: Page number (e.g., `?page=1`)
+    - `page_size`: Number of items per page (default: 10)
+    - `is_active`: Filter by student's active status (`true` or `false`).
+    - `search`: Search term for student's username, email, or full name.
+    - `ordering`: Field to order by. Options are `enrollment_date`, `-enrollment_date`, `student__full_name`, `-student__full_name`.
+- **Frontend URL Examples**:
+    - **Get page 2 of students**: `/api/v1/teacher/get_students/?page=2`
+    - **Get active students**: `/api/v1/teacher/get_students/?is_active=true`
+    - **Search for students with "john" in their name, email, or username**: `/api/v1/teacher/get_students/?search=john`
+    - **Order students by enrollment date (ascending)**: `/api/v1/teacher/get_students/?ordering=enrollment_date`
+    - **Order students by full name (descending)**: `/api/v1/teacher/get_students/?ordering=-student__full_name`
+    - **Combined example (active students, page 1, ordered by name)**: `/api/v1/teacher/get_students/?is_active=true&page=1&ordering=student__full_name`
+- **Response (Success - 200 OK)**:
+    ```json
+    {
+        "count": "integer",
+        "next": "url or null",
+        "previous": "url or null",
+        "results": [
+            {
+                "id": "integer",
+                "student": {
+                    "user": {
+                        "id": "integer",
+                        "first_name": "string",
+                        "last_name": "string",
+                        "email": "string",
+                        "username": "string",
+                        "slug": "string",
+                        "phone": "string",
+                        "parent_phone": "string",
+                        "user_type": "string",
+                        "avatar": "url or null",
+                        "logo": "url or null",
+                        "is_active": "boolean",
+                        "created_at": "datetime",
+                        "last_login": "datetime"
+                    },
+                    "id": "integer",
+                    "full_name": "string",
+                    "bio": "string or null",
+                    "profile_picture": "url or null",
+                    "date_of_birth": "date or null",
+                    "address": "string or null",
+                    "country": "string or null",
+                    "city": "string or null",
+                    "gender": "string or null"
+                },
+                "enrollment_date": "datetime",
+                "notes": "string or null",
+                "is_active": "boolean",
+                "completed_lessons": "integer",
+                "last_activity": "datetime or null",
+                "number_of_completed_courses": "integer",
+                "teacher": "integer (teacher profile id)"
+            }
+        ]
+    }
+    ```
+
 ---
 
 ### 2. Course Category Management
@@ -958,6 +1024,38 @@ EduPro API uses token-based authentication via cookies.
     - `page`: Page number
     - `page_size`: Number of items per page (default: 5)
 - **Response (Success - 200 OK)**: (Same as List Courses)
+
+#### 3.7. List Courses Specific to Teacher
+- **URL**: `/api/v1/course/teacher-list/`
+- **Method**: `GET`
+- **Permissions**: `IsTeacher`
+- **Description**: Retrieves a list of courses created by the authenticated teacher, ordered by creation date (newest first).
+- **Response (Success - 200 OK)**:
+    ```json
+    [
+        {
+            "id": "uuid",
+            "title": "string",
+            "description": "string",
+            "trailer_video": "url or null",
+            "price": "decimal",
+            "is_published": "boolean",
+            "is_free": "boolean",
+            "category": {
+                "id": "integer",
+                "name": "string",
+                "icon": "url or null"
+            },
+            "thumbnail": "url or null",
+            "created_at": "datetime",
+            "total_enrollments": "integer",
+            "total_lessons": "integer",
+            "total_reviews": "integer",
+            "average_rating": "float",
+            "total_durations": "integer"
+        }
+    ]
+    ```
 
 ---
 
