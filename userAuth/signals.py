@@ -9,3 +9,5 @@ def create_user_profile(sender, instance, created, **kwargs):
             StudentProfile.objects.create(user=instance)
         elif instance.user_type == User.userType.TEACHER:
             TeacherProfile.objects.create(user=instance)
+            
+            
