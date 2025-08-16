@@ -600,7 +600,7 @@ class CheckVideoStatusAPIView(generics.GenericAPIView):
         return Response({"message": f"Video status: {video_status}"}, status=status.HTTP_200_OK)
 
 # student lesson progress
-class UpdateLessonProgressView(generics.UpdateAPIView):
+class UpdateLessonProgressView(generics.RetrieveUpdateAPIView):
     serializer_class = StudentLessonProgressSerilaizer
     permission_classes = [permissions.IsAuthenticated, IsLessonAccessible]
 

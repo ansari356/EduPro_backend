@@ -1,6 +1,6 @@
 from datetime import timedelta
 from django.db import models
-from userAuth.models import  StudentProfile , TeacherProfile
+from userAuth.models import  StudentProfile , TeacherProfile,TeacherStudentProfile
 import uuid
 from django.utils import timezone
 from .utilis import genrate_coupon_code,create_lesson_progress_for_access
@@ -303,6 +303,8 @@ class StudentLessonProgress(models.Model):
     
     class Meta:
         unique_together = ('student', 'lesson') 
+        
+    
 class Rating(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='ratings')
