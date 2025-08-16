@@ -526,7 +526,10 @@ class StudentRefreshView(APIView):
         # Perform student-teacher relationship check if user is authenticated and has a student profile
         if request.user.is_authenticated and hasattr(request.user, 'student_profile'):
             if refresh_token != request.user.refresh_token:
-                return Response({'error': 'Invalid session. Please log in again.'}, status=status.HTTP_401_UNAUTHORIZED)
+                res = Response({'error': 'Invalid session. Please log in again.'}, status=status.HTTP_401_UNAUTHORIZED)
+                res.delete_cookie('access_token')
+                res.delete_cookie('refresh_token')
+                return res
             student_profile = request.user.student_profile
             relation =  TeacherStudentProfile.objects.filter(student=student_profile, teacher=teacher_profile).first()
 
