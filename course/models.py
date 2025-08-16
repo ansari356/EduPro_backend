@@ -260,6 +260,7 @@ class Lesson(models.Model):
         return f"{self.module.title} - {self.title}"
     
     def save(self, *args, **kwargs):
+        creating=self._state.adding
         super().save(*args, **kwargs)
         
         if self.thumbnail:
@@ -269,8 +270,30 @@ class Lesson(models.Model):
                 img.thumbnail(max_size)
                 img.save(self.thumbnail.path)
             
-           
-        
+        if creating:
+            from .models import StudentLessonProgress, CourseEnrollment, ModuleEnrollment
+
+            course_students = CourseEnrollment.objects.filter(
+                course=self.module.course,
+                status=CourseEnrollment.EnrollmentStatus.ACTIVE,
+                is_active=True,
+                access_type=CourseEnrollment.AccessType.FULL_ACCESS,
+            ).values_list("student", flat=True)
+
+            module_students = ModuleEnrollment.objects.filter(
+                module=self.module,
+                status=ModuleEnrollment.EnrollmentStatus.ACTIVE,
+                is_active=True,
+            ).values_list("student", flat=True)
+
+            student_ids = set(course_students) | set(module_students)
+
+            StudentLessonProgress.objects.bulk_create(
+                [StudentLessonProgress(student_id=sid, lesson=self) for sid in student_ids],
+                ignore_conflicts=True
+            )
+            
+            
     def delete(self, *args, **kwargs):
         
         if self.video:
