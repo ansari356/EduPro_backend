@@ -401,7 +401,7 @@ class LoginStudentAPIView(APIView):
             if user_to_check.user_type != User.userType.STUDENT:
                 return Response({"error": "Invalid user type. User is not a student."}, status=status.HTTP_400_BAD_REQUEST)
             # check if the user belongs to the teacher
-            relation = TeacherStudentProfile.objects.filter(
+            relation = TeacherStudentProfile.objects.select_related('student' , 'teacher').filter(
                 student=user_to_check.student_profile,
                 teacher=teacher_user.teacher_profile
             ).first()
@@ -413,15 +413,6 @@ class LoginStudentAPIView(APIView):
             # check if the user is blocked
             if not relation.is_active:
                 return Response({"error": "You are blocked by the teacher."}, status=status.HTTP_403_FORBIDDEN)
-            
-         
-            if user_to_check.refresh_token and user_to_check.is_active:
-                try:
-                    RefreshToken(user_to_check.refresh_token)
-                    return Response({"error": "User is already logged in from another device."}, status=status.HTTP_403_FORBIDDEN)
-                except TokenError:
-                    # Token is invalid, allow login
-                    pass
             if not hasattr(user_to_check, 'student_profile'):
                 return Response({"error": "Invalid user type. Student profile not found."}, status=status.HTTP_400_BAD_REQUEST)
                 
@@ -534,6 +525,8 @@ class StudentRefreshView(APIView):
 
         # Perform student-teacher relationship check if user is authenticated and has a student profile
         if request.user.is_authenticated and hasattr(request.user, 'student_profile'):
+            if refresh_token != request.user.refresh_token:
+                return Response({'error': 'Invalid session. Please log in again.'}, status=status.HTTP_401_UNAUTHORIZED)
             student_profile = request.user.student_profile
             relation =  TeacherStudentProfile.objects.filter(student=student_profile, teacher=teacher_profile).first()
 
@@ -542,14 +535,6 @@ class StudentRefreshView(APIView):
 
             if not relation.is_active:
                 return Response({'error': 'You are blocked by the teacher.'}, status=status.HTTP_403_FORBIDDEN)
-
-            if request.user.refresh_token and request.user.is_active:
-                try:
-                    RefreshToken(request.user.refresh_token)
-                    return Response({'error': 'User is already logged in from another device.'}, status=status.HTTP_403_FORBIDDEN)
-                except TokenError:
-                    # Token is invalid, allow login
-                    pass
 
         try:
             refresh = RefreshToken(refresh_token)
