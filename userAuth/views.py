@@ -14,6 +14,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth import authenticate
 from rest_framework.pagination import PageNumberPagination
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter , OrderingFilter
 # Create your views here.
 class RegisterAPIView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
@@ -151,15 +153,18 @@ class GetStudentProfileAPIView(generics.RetrieveAPIView):
         return obj
 
 class BasePagination(PageNumberPagination):
-    page_size = 1
+    page_size = 5
 
 
 class GetSudentRelatedToTeacherAPIView(generics.ListAPIView):
     serializer_class = GetStudentRelatedToTeacherSerializer
     permission_classes = [IsTeacher]
-    pagination_class = PageNumberPagination
-    PageNumberPagination.page_size = 5
-    
+    pagination_class = BasePagination
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['is_active',]
+    ordering_fields = ['enrollment_date ', 'student__full_name']
+    search_fields = ['student__user__username', 'student__user__email', 'student__full_name']
+
 
     def get_queryset(self):
         user = self.request.user
@@ -167,11 +172,42 @@ class GetSudentRelatedToTeacherAPIView(generics.ListAPIView):
             teacher_profile = TeacherProfile.objects.get(user=user)
             return TeacherStudentProfile.objects.filter(teacher=teacher_profile).select_related(
                 'student__user'
-            )
+            ).order_by('student__full_name')
+            
         except TeacherProfile.DoesNotExist:
             return TeacherStudentProfile.objects.none()
 
-        
+
+class ToggleBlockStudentAPIView(APIView):
+    """
+    A view for a teacher to toggle the block status of a student.
+    This action flips the 'is_active' flag on the TeacherStudentProfile.
+    """
+    permission_classes = [IsTeacher]
+
+    def patch(self, request, *args, **kwargs):
+        teacher_profile = request.user.teacher_profile
+        student_id = self.kwargs.get('student_id')
+        student_profile = get_object_or_404(StudentProfile, user__id=student_id)
+        if not student_id:
+            raise ValidationError({'student_id': 'Student ID is required in the URL.'})
+
+        # Retrieve the specific student-teacher relationship instance
+        instance = get_object_or_404(
+            TeacherStudentProfile,
+            teacher=teacher_profile,
+            student=student_profile,
+        )
+
+        instance.is_active = not instance.is_active
+        instance.save(update_fields=['is_active'])
+
+        if instance.is_active:
+            message = "Student has been unblocked."
+        else:
+            message = "Student has been blocked."
+
+        return Response({"message": message}, status=status.HTTP_200_OK)
         
 
 class GetTeacherProfileAPIView(generics.RetrieveAPIView):
@@ -220,6 +256,37 @@ class PublicTeacherInfo(generics.RetrieveAPIView):
         return obj
 
 
+
+class GetStudentProfileAssositedWithTeacherAPIView(generics.RetrieveAPIView):
+    serializer_class = TeacherStudentProfileSerializer
+    permission_classes = [IsTeacher]
+ 
+    def get_object(self):
+        user = self.request.user
+        teacher_profile = get_object_or_404(TeacherProfile, user=user)
+        student_id = self.kwargs.get('student_id')
+
+        if not student_id:
+            raise ValidationError({'student_id': 'student id is required'})
+
+        student_profile = get_object_or_404(StudentProfile, user__id=student_id)
+
+        queryset = TeacherStudentProfile.objects.select_related(
+            'student__user', 'teacher__user'
+        ).annotate(
+            enrollment_courses_count=Count(
+                'student__enrollments',
+                filter=Q(student__enrollments__course__teacher=teacher_profile)
+            )
+        )
+
+        obj = get_object_or_404(
+            queryset,
+            student=student_profile,
+            teacher=teacher_profile
+        )
+        self.check_object_permissions(self.request, obj)
+        return obj
 class UpdateStudentProfileAPIView(generics.UpdateAPIView):
     serializer_class = StudentProfileSerializer
     permission_classes = [IsStudent]
@@ -334,10 +401,20 @@ class LoginStudentAPIView(APIView):
             if user_to_check.user_type != User.userType.STUDENT:
                 return Response({"error": "Invalid user type. User is not a student."}, status=status.HTTP_400_BAD_REQUEST)
             # check if the user belongs to the teacher
+            relation = TeacherStudentProfile.objects.filter(
+                student=user_to_check.student_profile,
+                teacher=teacher_user.teacher_profile
+            ).first()
             
-            if not TeacherStudentProfile.objects.filter(student=user_to_check.student_profile, teacher=teacher_user.teacher_profile).exists():
-                return Response({"error": f"You are not registered as a student for this teacher."}, status=status.HTTP_403_FORBIDDEN)
+            if not relation:
+                return Response({'error': f"You are not registered as a student for this teacher."})
+                
             
+            # check if the user is blocked
+            if not relation.is_active:
+                return Response({"error": "You are blocked by the teacher."}, status=status.HTTP_403_FORBIDDEN)
+            
+         
             if user_to_check.refresh_token and user_to_check.is_active:
                 try:
                     RefreshToken(user_to_check.refresh_token)
@@ -458,10 +535,21 @@ class StudentRefreshView(APIView):
         # Perform student-teacher relationship check if user is authenticated and has a student profile
         if request.user.is_authenticated and hasattr(request.user, 'student_profile'):
             student_profile = request.user.student_profile
-            if not TeacherStudentProfile.objects.filter(student=student_profile, teacher=teacher_profile).exists():
+            relation =  TeacherStudentProfile.objects.filter(student=student_profile, teacher=teacher_profile).first()
+
+            if not relation:
                 return Response({'error': 'You are not registered as a student for this teacher.'}, status=status.HTTP_403_FORBIDDEN)
-        # If user is not authenticated or not a student, we skip the student-teacher relationship check.
-        # The token refresh will proceed if the refresh token is valid.
+
+            if not relation.is_active:
+                return Response({'error': 'You are blocked by the teacher.'}, status=status.HTTP_403_FORBIDDEN)
+
+            if request.user.refresh_token and request.user.is_active:
+                try:
+                    RefreshToken(request.user.refresh_token)
+                    return Response({'error': 'User is already logged in from another device.'}, status=status.HTTP_403_FORBIDDEN)
+                except TokenError:
+                    # Token is invalid, allow login
+                    pass
 
         try:
             refresh = RefreshToken(refresh_token)

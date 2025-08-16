@@ -23,9 +23,11 @@ urlpatterns = [
     
     path('teacher/update-profile/', user_views.UpdateTeacherProfileAPIView.as_view(), name='update-teacher-profile'),
     path('teacher/students/remove/<student_id>/', user_views.RemoveStudentAPIView.as_view(), name='teacher-student-remove'),
+    path('teacher/students/toggle-block/<student_id>/', user_views.ToggleBlockStudentAPIView.as_view(), name='teacher-student-toggle-block'),
     path('teacher/get_students/',user_views.GetSudentRelatedToTeacherAPIView.as_view(),name="get-students"),
      path('teacher/revenue/', course_views.RevinewAPIView.as_view(), name='teacher-revenue'),
      path('get_student-enrollments/<course_id>', course_views.GetStudentEnrolledToCourseAPIView.as_view(), name='get-student-enrollments'),
+     path('teacher/get-student-profile/<student_id>', user_views.GetStudentProfileAssositedWithTeacherAPIView.as_view(), name='get-student-profile-by-id'),
     # login paths
     path('teacher/login/', LoginView.as_view()),
     path('student/login/<teacher_username>/', LoginStudentAPIView.as_view(), name='student-login'),
@@ -49,7 +51,8 @@ urlpatterns = [
     path('course/course-enrollment-delete/<course_id>/<enrollment_id>',course_views.CourseEnrollmentDeletAPIView.as_view(),name='course-enrollmnebt-delete'),
     path('course/course-search-filter/',course_views.CoursesFilterSerachAPIView.as_view(),name='course-search-filter'),
     path('course/module-enrollment/',course_views.ModuleEnrollmentAPIView.as_view(),name='module-enrollment'),
-    
+    path('course/private-deatils/<course_id>',course_views.courselistteacher.as_view(),name='module-enrollment-list'),
+    path('course/list-by-teacher/', course_views.CourseSpacificToTeacherApiView.as_view(), name='course-list-by-teacher'),
     # CuponEndpoints
     path('coupon/create/', course_views.CouponCreateAPIView.as_view(), name='coupon-create'),
     path('coupon/list/', course_views.CouponListAPIView.as_view(), name='coupon-list'), 

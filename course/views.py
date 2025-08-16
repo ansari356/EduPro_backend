@@ -12,8 +12,9 @@ from .serializer import (CourseCategorySerializer,CourseCategoryCreateSerializer
 LessonCreateUpdateSerializer,CourseModuleDetailSerializer,CourseModuleCreateSerializer,
 CourseModuleUpdateSerializer,
 CouponSerializer,
-CourseEnrollmentCreateSerializer,CouesEnrollmentSerializer, ModuleEnrollmentSerializer, ModuleEnrollmentCreateSerializer ,StudentLessonProgressSerilaizer,
- CourseRatingCreateSerializer,RatingListSerializer,EarningSerializer,CouponUsageSerialzier
+CourseEnrollmentCreateSerializer,CouesEnrollmentSerializer, ModuleEnrollmentSerializer, ModuleEnrollmentCreateSerializer ,
+ CourseRatingCreateSerializer,RatingListSerializer,EarningSerializer,CouponUsageSerialzier,
+ CourseSerializerForTeacher,StudentLessonProgressSerilaizer
 )
 from rest_framework.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
@@ -75,16 +76,17 @@ class CourseListAPIView(generics.ListAPIView):
     def get_queryset(self):
         return Course.objects.filter(is_published=True).select_related('teacher', 'category').order_by('-created_at')
 
-class courselistteacher(generics.ListAPIView):
-    serializer_class = CourseSerializer
+class courselistteacher(generics.RetrieveAPIView):
+    serializer_class = CourseSerializerForTeacher
     permission_classes = [IsTeacher]
 
-    def get_queryset(self):
-        user = self.request.user
-        if  hasattr(user, 'teacher_profile'):
-            return Course.objects.filter(teacher=user.teacher_profile).select_related('category').order_by('-created_at')
-        else:
-            return Course.objects.none()
+    def get_object(self):
+        course_id = self.kwargs.get('course_id')
+        course = get_object_or_404(Course, id=course_id)
+        if course.teacher != self.request.user.teacher_profile:
+            raise PermissionDenied("You do not have permission to view this course.")
+        
+        return course
         
 
 
@@ -96,7 +98,19 @@ class CourseListForTeacherAPIView(generics.ListAPIView):
     def get_queryset(self):
         teacher_username = self.kwargs.get('teacher_username')
         user = get_object_or_404(User, username=teacher_username)
-        return Course.objects.filter(teacher=user.teacher_profile).select_related('category').order_by('-created_at')
+        return Course.objects.filter(teacher=user.teacher_profile, is_published=True).select_related('category').order_by('-created_at')
+
+
+class CourseSpacificToTeacherApiView(generics.ListAPIView):
+    serializer_class = CourseSerializer
+    permission_classes = [IsTeacher]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if hasattr(user, 'teacher_profile'):
+            return Course.objects.filter(teacher=user.teacher_profile).select_related('category').order_by('-created_at')
+        return Course.objects.none()
+
 
 class CourseDetailAPIView(generics.RetrieveAPIView):
     serializer_class = CourseSerializer
@@ -200,8 +214,9 @@ class RevinewAPIView(generics.RetrieveAPIView):
         if not hasattr(user, 'teacher_profile'):
             return Response({"error": "You are not a teacher."}, status=status.HTTP_403_FORBIDDEN)
 
-        total_revenue = CouponUsage.objects.filter(coupon__teacher=user.teacher_profile).aggregate(total_revenue=models.Sum('coupon__price'))['total_revenue'] or 0.00
+        total_revenue = CouponUsage.objects.filter(coupon__teacher=user.teacher_profile,).aggregate(total_revenue=models.Sum('coupon__price'))['total_revenue'] or 0.00
         return Response({"revenue": total_revenue}, status=status.HTTP_200_OK)
+
 
 
 class TeacherCouponQuerysetMixin:

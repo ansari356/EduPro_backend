@@ -4,6 +4,7 @@ from django.contrib.auth.hashers import make_password
 from django.utils import timezone
 from userAuth.models import User, StudentProfile, TeacherProfile, TeacherStudentProfile
 from course.models import CourseCategory, Course, CourseModule, Lesson, CourseEnrollment, Coupon, ModuleEnrollment
+from assessments.models import Assessment, Question, QuestionOption, StudentAssessmentAttempt, StudentAnswer
 
 class Command(BaseCommand):
     help = 'Creates demo data for EduPro backend APIs.'
@@ -209,5 +210,92 @@ class Command(BaseCommand):
                 )
                 if created:
                     self.stdout.write(self.style.SUCCESS(f'Created coupon: {coupon.code}'))
+
+        # 10. Create Assessments, Questions, and Options
+        self.stdout.write(self.style.SUCCESS('Creating assessments, questions, and options...'))
+        assessments = []
+        questions = []
+
+        # Create a quiz for some lessons
+        for lesson in random.sample(lessons, k=min(len(lessons), 3)):
+            assessment, created = Assessment.objects.get_or_create(
+                lesson=lesson,
+                assessment_type=Assessment.AssessmentType.QUIZ,
+                defaults={
+                    'title': f'Quiz for {lesson.title}',
+                    'teacher': lesson.module.course.teacher,
+                    'is_published': True,
+                    'passing_score': 70.00,
+                }
+            )
+            if created:
+                self.stdout.write(self.style.SUCCESS(f'Created Quiz: {assessment.title}'))
+            assessments.append(assessment)
+
+        # Create an assignment for some modules
+        for module in random.sample(modules, k=min(len(modules), 2)):
+            assessment, created = Assessment.objects.get_or_create(
+                module=module,
+                assessment_type=Assessment.AssessmentType.ASSIGNMENT,
+                defaults={
+                    'title': f'Assignment for {module.title}',
+                    'teacher': module.course.teacher,
+                    'is_published': True,
+                    'max_attempts': 2,
+                    'passing_score': 60.00,
+                }
+            )
+            if created:
+                self.stdout.write(self.style.SUCCESS(f'Created Assignment: {assessment.title}'))
+            assessments.append(assessment)
+
+        # Create questions for each assessment
+        for assessment in assessments:
+            for i in range(1, 4):
+                question, created = Question.objects.get_or_create(
+                    assessment=assessment,
+                    order=i,
+                    defaults={
+                        'question_text': f'This is question {i} for {assessment.title}. What is the answer?',
+                        'question_type': Question.QuestionType.MULTIPLE_CHOICE,
+                        'mark': 10.00,
+                    }
+                )
+                if created:
+                    self.stdout.write(self.style.SUCCESS(f'Created Question: {question.question_text[:30]}...'))
+                    # Create options for the multiple choice question
+                    for j in range(1, 5):
+                        QuestionOption.objects.create(
+                            question=question,
+                            option_text=f'Option {j}',
+                            is_correct=(j == 1), # Make the first option correct
+                            order=j
+                        )
+                questions.append(question)
+
+        # 11. Create Student Assessment Attempts and Answers
+        self.stdout.write(self.style.SUCCESS('Creating student assessment attempts...'))
+        for student_user in student_users:
+            student_profile = student_user.student_profile
+            for assessment in random.sample(assessments, k=min(len(assessments), 2)):
+                attempt, created = StudentAssessmentAttempt.objects.get_or_create(
+                    student=student_profile,
+                    assessment=assessment,
+                    attempt_number=1,
+                    defaults={
+                        'status': StudentAssessmentAttempt.AttemptStatus.SUBMITTED,
+                    }
+                )
+                if created:
+                    self.stdout.write(self.style.SUCCESS(f'Created attempt for {student_user.username} on {assessment.title}'))
+                    # Create answers for the attempt
+                    for question in assessment.questions.all():
+                        if question.question_type == Question.QuestionType.MULTIPLE_CHOICE:
+                            correct_option = question.options.filter(is_correct=True).first()
+                            StudentAnswer.objects.create(
+                                attempt=attempt,
+                                question=question,
+                                selected_option=correct_option,
+                            )
 
         self.stdout.write(self.style.SUCCESS('Demo data creation complete!'))
