@@ -16,6 +16,7 @@ from django.contrib.auth import authenticate
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter , OrderingFilter
+from django.conf import settings # Import settings
 # Create your views here.
 class RegisterAPIView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
@@ -355,7 +356,8 @@ class LoginView(APIView):
                     value=access_token,
                     httponly=True,
                     secure=False,
-                    samesite='Lax'
+                    samesite='Lax',
+                    max_age=settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds()
                 )
                 res.set_cookie(
                     
@@ -364,6 +366,7 @@ class LoginView(APIView):
                     httponly=True,
                     secure=False,
                     samesite='Lax',
+                    max_age=settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds()
                     # path='/api/v1/token/refresh/'
                 )
                 
@@ -438,7 +441,8 @@ class LoginStudentAPIView(APIView):
                 value=access_token,
                 httponly=True,
                 secure=False, 
-                samesite='Lax'
+                samesite='Lax',
+                max_age=settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds()
             )
             res.set_cookie(
                 key='refresh_token',
@@ -446,6 +450,7 @@ class LoginStudentAPIView(APIView):
                 httponly=True,
                 secure=False,
                 samesite='Lax',
+                max_age=settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds()
             )
             return res
         else:
@@ -502,7 +507,8 @@ class CookieTokenRefreshView(APIView):
             value=access_token,
             httponly=True,
             samesite='Lax',
-            secure=False
+            secure=False,
+            max_age=settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds()
         )
         return res
 
@@ -551,6 +557,7 @@ class StudentRefreshView(APIView):
             value=access_token,
             httponly=True,
             samesite='Lax',
-            secure=False
+            secure=False,
+            max_age=settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds()
         )
         return res
