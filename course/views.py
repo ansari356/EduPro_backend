@@ -23,7 +23,7 @@ from rest_framework.pagination import PageNumberPagination
 from .utilis import get_vdocipher_video_details
 from django.db import models
 from userAuth.serializer import StudentProfileSerializer , userSerializer
-
+from django.db import connection
 # Create your views here.
 
 class CourseCategoryCreateAPIView(generics.CreateAPIView):
@@ -63,7 +63,6 @@ class CourseCreateAPIView(generics.CreateAPIView):
     serializer_class = CourseCreateSerializer
     permission_classes = [IsTeacher]
     queryset = Course.objects.all()
-
 
 
 class CourseListAPIView(generics.ListAPIView):

@@ -78,6 +78,7 @@ class IsModuleAccessible(permissions.BasePermission):
                 has_module_access = ModuleEnrollment.objects.filter(
                     student=user.student_profile,
                     module=module,
+                    status=ModuleEnrollment.EnrollmentStatus.ACTIVE,
                     is_active=True,
                 ).exists()
 
