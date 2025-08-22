@@ -37,8 +37,6 @@ class User(AbstractUser):
         indexes = [
             models.Index(fields=['is_active']),
             models.Index(fields=['user_type']),
-            models.Index(fields=['refresh_token']),
-            
         ]
     
     def __str__(self):
@@ -155,6 +153,9 @@ class TeacherStudentProfile(models.Model):
         verbose_name = 'Dashboard'
         verbose_name_plural = 'Dashboard'
         ordering = ['-enrollment_date']
+        indexes = [
+            models.Index(fields=['is_active']),
+        ]
     
     def __str__(self):
         return f"{self.student.user.username} with {self.teacher.user.username}"
