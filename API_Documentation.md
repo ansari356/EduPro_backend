@@ -394,6 +394,39 @@ EduPro API uses token-based authentication via cookies.
     }
     ```
 
+#### 7.6. Update Lesson Progress
+- **URL**: `/api/v1/lessons/<uuid:id>/status/`
+- **Method**: `PUT` / `PATCH`
+- **Permissions**: `IsAuthenticated`, `IsLessonAccessible`
+- **Description**: Updates the progress of a specific lesson for the authenticated student. A `StudentLessonProgress` object must already exist for the student and lesson. This is typically created automatically when a student enrolls in a course.
+- **URL Parameters**:
+    - `id`: The UUID of the lesson.
+- **Request Body**:
+    ```json
+    {
+        "is_completed": "boolean"
+    }
+    ```
+- **Response (Success - 200 OK)**:
+    ```json
+    {
+        "id": "integer",
+        "is_completed": "boolean"
+    }
+    ```
+- **Response (Error - 403 Forbidden)**:
+    ```json
+    {
+        "detail": "You don't have permission to access this lesson."
+    }
+    ```
+- **Response (Error - 404 Not Found)**:
+    ```json
+    {
+        "detail": "Not found."
+    }
+    ```
+
 #### 1.10. Update Student Profile
 - **URL**: `/api/v1/student/update-profile/`
 - **Method**: `PUT` / `PATCH`
