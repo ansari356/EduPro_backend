@@ -4,7 +4,11 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny , IsAuthenticated
 from django.core.exceptions import PermissionDenied
-from .serializer import RegisterSerializer,StudentRegistrationSerializer ,StudentProfileSerializer , TeacherProfileSerializer, TeacherStudentProfileSerializer, GetStudentRelatedToTeacherSerializer,JoinAuthenticatedStudent,LoginSerializer,UserInfoSerializer
+from .serializer import(RegisterSerializer,StudentRegistrationSerializer ,StudentProfileSerializer , 
+TeacherProfileSerializer, TeacherStudentProfileSerializer, 
+GetStudentRelatedToTeacherSerializer,JoinAuthenticatedStudent,
+LoginSerializer,UserInfoSerializer,ChangePasswordSerializer
+)
 from .models import User , StudentProfile , TeacherProfile, TeacherStudentProfile
 from course.permissions import IsStudent , IsTeacher
 from django.db.models import Count, Q
@@ -207,7 +211,6 @@ class ToggleBlockStudentAPIView(APIView):
             message = "Student has been unblocked."
         else:
             message = "Student has been blocked."
-
         return Response({"message": message}, status=status.HTTP_200_OK)
         
 
@@ -488,20 +491,32 @@ class LogoutView(APIView):
 # refresh token view (cokkies)
 class CookieTokenRefreshView(APIView):
     permission_classes = [AllowAny]
-    def post(self,request):
+    
+    def post(self, request):
         refresh_token = request.COOKIES.get('refresh_token')
-        print(request.COOKIES)
+        
         if refresh_token is None:
-            return Response({'error':'Refresh token not found'},status=status.HTTP_401_UNAUTHORIZED)
-
+            return Response({'error': 'Refresh token not found'}, status=status.HTTP_401_UNAUTHORIZED)
+        
         try:
-            refresh=RefreshToken(refresh_token)
-            access_token=str(refresh.access_token)
+            refresh = RefreshToken(refresh_token)
+            access_token = str(refresh.access_token)
+            
+            # Get user from refresh token to check user type
+            user_id = refresh.payload.get('user_id')
+            if user_id:
+                try:
+                    user = User.objects.get(id=user_id)
+                    if user.user_type == User.userType.STUDENT:
+                        return Response({'error': 'Students must use the student refresh endpoint.'}, 
+                                      status=status.HTTP_403_FORBIDDEN)
+                except User.DoesNotExist:
+                    return Response({'error': 'Invalid refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
+            
         except TokenError:
-
             return Response({'error': 'Invalid or expired refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
-
-        res=Response({'message':'Token refreshed successfully'},status=status.HTTP_200_OK)
+        
+        res = Response({'message': 'Token refreshed successfully'}, status=status.HTTP_200_OK)
         res.set_cookie(
             key='access_token',
             value=access_token,
@@ -514,43 +529,65 @@ class CookieTokenRefreshView(APIView):
 
 
 class StudentRefreshView(APIView):
-    permission_classes = [IsAuthenticated, IsStudent]
-
+    permission_classes = [AllowAny] 
     def post(self, request, teacher_username):
         refresh_token = request.COOKIES.get('refresh_token')
-
+        
         if refresh_token is None:
             return Response({'error': 'Refresh token not found'}, status=status.HTTP_401_UNAUTHORIZED)
-
+        
         # Validate teacher_username first
         try:
             teacher = get_object_or_404(User, username=teacher_username, user_type=User.userType.TEACHER)
             teacher_profile = get_object_or_404(TeacherProfile, user=teacher)
         except (User.DoesNotExist, TeacherProfile.DoesNotExist):
             return Response({'error': 'Invalid teacher specified.'}, status=status.HTTP_404_NOT_FOUND)
-
-        # Perform student-teacher relationship check if user is authenticated and has a student profile
-        if request.user.is_authenticated and hasattr(request.user, 'student_profile'):
-            if refresh_token != request.user.refresh_token:
+        
+        try:
+            refresh = RefreshToken(refresh_token)
+            access_token = str(refresh.access_token)
+            
+            # Get user from refresh token
+            user_id = refresh.payload.get('user_id')
+            if not user_id:
+                return Response({'error': 'Invalid refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
+            
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return Response({'error': 'Invalid refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
+            
+            # Verify user is a student
+            if user.user_type != User.userType.STUDENT:
+                return Response({'error': 'This endpoint is only for students.'}, status=status.HTTP_403_FORBIDDEN)
+            
+            # Verify refresh token matches user's stored token
+            if hasattr(user, 'refresh_token') and refresh_token != user.refresh_token:
                 res = Response({'error': 'Invalid session. Please log in again.'}, status=status.HTTP_401_UNAUTHORIZED)
                 res.delete_cookie('access_token')
                 res.delete_cookie('refresh_token')
                 return res
-            student_profile = request.user.student_profile
-            relation =  TeacherStudentProfile.objects.filter(student=student_profile, teacher=teacher_profile).first()
-
-            if not relation:
-                return Response({'error': 'You are not registered as a student for this teacher.'}, status=status.HTTP_403_FORBIDDEN)
-
-            if not relation.is_active:
-                return Response({'error': 'You are blocked by the teacher.'}, status=status.HTTP_403_FORBIDDEN)
-
-        try:
-            refresh = RefreshToken(refresh_token)
-            access_token = str(refresh.access_token)
+            
+            # Check student-teacher relationship
+            if hasattr(user, 'student_profile'):
+                student_profile = user.student_profile
+                relation = TeacherStudentProfile.objects.select_related('student', 'teacher').filter(
+                    student=student_profile, teacher=teacher_profile
+                ).first()
+                
+                if not relation:
+                    return Response({'error': 'You are not registered as a student for this teacher.'}, 
+                                  status=status.HTTP_403_FORBIDDEN)
+                
+                if not relation.is_active:
+                    return Response({'error': 'You are blocked by the teacher.'}, 
+                                  status=status.HTTP_403_FORBIDDEN)
+            else:
+                return Response({'error': 'Student profile not found.'}, status=status.HTTP_404_NOT_FOUND)
+                
         except TokenError:
             return Response({'error': 'Invalid or expired refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
-
+        
         res = Response({'message': 'Token refreshed successfully'}, status=status.HTTP_200_OK)
         res.set_cookie(
             key='access_token',
@@ -561,3 +598,22 @@ class StudentRefreshView(APIView):
             max_age=settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds()
         )
         return res
+class ChangePasswordAPIView(generics.GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ChangePasswordSerializer
+
+    def put(self, request):
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            user = request.user
+            old_password = serializer.validated_data['old_password']
+            new_password = serializer.validated_data['new_password']
+
+            if user.check_password(raw_password=old_password):
+                user.set_password(new_password)
+                user.save()
+                return Response({'message': 'Password changed successfully'}, status=status.HTTP_200_OK)
+            else:
+                return Response({'error': 'Old password is incorrect'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
