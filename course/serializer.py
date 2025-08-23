@@ -575,7 +575,7 @@ class CourseModuleDetailSerializer(serializers.ModelSerializer):
 class CourseModuleCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CourseModule
-        fields = [ 'title','course', 'description', 'order','image']
+        fields = [ 'title', 'description', 'order','image']
     
     def validate_title(self, value):
         if not value.strip():
