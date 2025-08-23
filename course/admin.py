@@ -48,7 +48,7 @@ admin.site.register(CouponUsage, CouponUsageAdmin)
 
 
 class CourseModuleAdmin(admin.ModelAdmin):
-    list_display =['id','course','title','description','is_published','created_at','total_lessons','total_duration']
+    list_display =['id','course','title','description','is_published','order','created_at','total_lessons','total_duration']
     list_filter = ('title','course')
     search_fields = ('title','course')
     

@@ -529,43 +529,34 @@ class StudentLessonProgressSerilaizer(serializers.ModelSerializer):
 
 # To display the list of modules (light display without much detail).
 class CourseModuleListSerializer(serializers.ModelSerializer):
-    image_url = serializers.SerializerMethodField()
     course=serializers.CharField(source='course.title',read_only=True)
     class Meta:
         model = CourseModule
-        fields = ['id', 'title','course', 'order', 'price', 'is_free', 'total_lessons', 'total_duration','image_url']
+        fields = ['id', 'title','course','description', 'order', 'price', 'is_free','is_published', 'total_lessons', 'total_duration']
         read_only_fields=fields
     
-    def get_image_url(self, obj):
-        request = self.context.get('request')
-        if obj.image and request:
-            return request.build_absolute_uri(obj.image.url)
-        return None
+    
     
 # To view full details for a single course module with it's lessons 
 class CourseModuleDetailSerializer(serializers.ModelSerializer):
-    image_url = serializers.SerializerMethodField()
     course=serializers.CharField(source='course.title',read_only=True)
-    lessons=lessons = serializers.SerializerMethodField()
+    lessons=serializers.SerializerMethodField()
     class Meta:
         model = CourseModule
-        fields = ['id', 'title','course', 'order', 'total_lessons', 'total_duration','image_url','lessons']
+        fields = ['id', 'title','course', 'order','price','is_free','is_published', 'total_lessons', 'total_duration','lessons']
         read_only_fields=fields
     
-    def get_image_url(self, obj):
-        request = self.context.get('request')
-        if obj.image and request:
-            return request.build_absolute_uri(obj.image.url)
-        return None
+    
     
     def get_lessons(self,obj):
         request = self.context['request']
         user = self.context['request'].user
         lessons_qs = obj.lessons.all()
         
-        if (
-            obj.course.teacher != user.teacher_profile
-        ):
+        if hasattr(user, 'teacher_profile'):
+            if obj.course.teacher != user.teacher_profile:
+                lessons_qs = lessons_qs.filter(is_published=True)
+        else:
             lessons_qs = lessons_qs.filter(is_published=True)
 
         return LessonSimpleSerializer(lessons_qs, many=True,context=self.context).data
@@ -575,7 +566,7 @@ class CourseModuleDetailSerializer(serializers.ModelSerializer):
 class CourseModuleCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CourseModule
-        fields = [ 'title','course', 'description', 'order','image']
+        fields = [ 'title', 'description', 'order','price','is_free','is_published']
     
     def validate_title(self, value):
         if not value.strip():
@@ -583,42 +574,19 @@ class CourseModuleCreateSerializer(serializers.ModelSerializer):
         if len(value) < 3:
             raise serializers.ValidationError("Title must be at least 3 characters long.")
         return value
-    
-    def validate_course(self,value):
-        if not value:
-            raise serializers.ValidationError("Course must not be empty")
 
-    def validate_image(self, value):
-        if value:
-            if not value.name.lower().endswith(('.jpg', '.jpeg', '.png')):
-                raise serializers.ValidationError("The image must be JPG or PNG.")
-            if value.size > 2 * 1024 * 1024:
-                raise serializers.ValidationError("Image size must be less than 2MB.")
-        return value
-    
     def validate_order(self, value):
-        if value and value <= 0:
+        if value is not None and value <= 0:
             raise serializers.ValidationError("lesson order must be greater than 0")
         return value
-    
-    def validate(self,attrs):
-        course = self.context.get('course')
-        order=attrs.get('order')
-        
-        if course and order:
-            existing=CourseModule.objects.filter(course=course,order=order).exists()
 
-            if existing :
-                raise serializers.ValidationError("there is already course in this order")
-        
-        return attrs
         
 
 # update,retrieve,delete
 class CourseModuleUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CourseModule
-        fields=['title', 'description', 'order', 'is_published', 'image']
+        fields=['title', 'description', 'order', 'is_published','price','is_free']
     
     def validate_title(self, value):
         if not value.strip():
@@ -627,32 +595,12 @@ class CourseModuleUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Title must be at least 3 characters long.")
         return value
     
-    def validate_image(self, value):
-        if value:
-            if not value.name.lower().endswith(('.jpg', '.jpeg', '.png')):
-                raise serializers.ValidationError("The image must be JPG or PNG.")
-            if value.size > 2 * 1024 * 1024:
-                raise serializers.ValidationError("Image size must be less than 2MB.")
-        return value
     
     def validate_order(self, value):
-        if value and value <= 0:
-            raise serializers.ValidationError("Module order must be greater than 0")
+        if value is not None and value <= 0:
+            raise serializers.ValidationError("lesson order must be greater than 0")
         return value
     
-    def validate(self,attrs):
-        module=self.context.get('module')
-        course=module.course
-        order=self.context.get('order')
-        
-        existing=CourseModule.objects.filter(course=course,order=order)
-        
-        if self.instance:
-            existing=existing.exclude(id=self.instance.id)
-
-        if existing.exists():
-            raise serializers.ValidationError("There is already a module with this order in the course.")
-        return attrs
 
 class EarningSerializer(serializers.Serializer):
     revenue = serializers.DecimalField(max_digits=10, decimal_places=2)

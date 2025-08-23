@@ -345,12 +345,18 @@ class CourseModuleListView(generics.ListAPIView):
     serializer_class = CourseModuleListSerializer
     permission_classes=[permissions.IsAuthenticated]
     
-    
     def get_queryset(self):
         course_id = self.kwargs['course_id']
         course=get_object_or_404(Course,id=course_id)
-    
-        return course.modules.filter(is_published=True).all().order_by('order')
+        user=self.request.user
+        
+        if hasattr(user, "teacher_profile") and course.teacher == user.teacher_profile:
+            return course.modules.all().order_by("order")
+        
+        if hasattr(user, "student_profile") :
+            return course.modules.filter(is_published=True).order_by("order")
+        
+        return course.modules.filter(is_published=True).order_by("order")
     
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -362,7 +368,7 @@ class CourseModuleListView(generics.ListAPIView):
 # course module details view   
 class CourseModuleDetailView(generics.RetrieveAPIView):
     serializer_class=CourseModuleDetailSerializer
-    permission_classes=[permissions.IsAuthenticated]
+    permission_classes=[permissions.IsAuthenticated,IsModuleAccessible]
     
     def get_object(self):
         module_id=self.kwargs.get('module_id')
