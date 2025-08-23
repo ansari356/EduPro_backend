@@ -386,9 +386,6 @@ class LoginStudentAPIView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request, teacher_username):
-        
-     
-        
         serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -397,68 +394,90 @@ class LoginStudentAPIView(APIView):
         email = validated_data.get('email')
         password = validated_data.get('password')
 
+        # Validate teacher exists first
         try:
-            teacher_user = User.objects.select_related('teacher_profile').get(username=teacher_username, user_type=User.userType.TEACHER)
+            teacher_user = User.objects.select_related('teacher_profile').get(
+                username=teacher_username, 
+                user_type=User.userType.TEACHER
+            )
         except User.DoesNotExist:
-            return Response({"error": "Teacher not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Teacher not found."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-        try:
-            user_to_check = User.objects.select_related('student_profile').get(email=email)
-            if user_to_check.user_type != User.userType.STUDENT:
-                return Response({"error": "Invalid user type. User is not a student."}, status=status.HTTP_400_BAD_REQUEST)
-            # check if the user belongs to the teacher
-            relation = TeacherStudentProfile.objects.select_related('student' , 'teacher').filter(
-                student=user_to_check.student_profile,
-                teacher=teacher_user.teacher_profile
-            ).first()
-            
-            if not relation:
-                return Response({'error': f"You are not registered as a student for this teacher."})
-                
-            
-            # check if the user is blocked
-            if not relation.is_active:
-                return Response({"error": "You are blocked by the teacher."}, status=status.HTTP_403_FORBIDDEN)
-            if not hasattr(user_to_check, 'student_profile'):
-                return Response({"error": "Invalid user type. Student profile not found."}, status=status.HTTP_400_BAD_REQUEST)
-                
-            if not TeacherStudentProfile.objects.filter(student=user_to_check.student_profile, teacher=teacher_user.teacher_profile).exists():
-                return Response({"error": f"You are not registered as a student for {teacher_username}."}, status=status.HTTP_403_FORBIDDEN)
-        except User.DoesNotExist:
-            return Response({"error": "Invalid credentials. Please check your email and password"}, status=status.HTTP_401_UNAUTHORIZED)
-
+        # Authenticate user first 
         user = authenticate(username=email, password=password)
-
-        if user is not None:
-            refresh = RefreshToken.for_user(user)
-            access_token = str(refresh.access_token)
-            refresh_token = str(refresh)
-
-            user.refresh_token = refresh_token
-            user.save(update_fields=['refresh_token'])
-
-            res = Response(UserInfoSerializer(user).data, status=status.HTTP_200_OK)
-            
-            res.set_cookie(
-                key='access_token',
-                value=access_token,
-                httponly=True,
-                secure=False, 
-                samesite='Lax',
-                max_age=settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds()
+        if user is None:
+            return Response(
+                {"error": "Invalid credentials. Please check your email and password."}, 
+                status=status.HTTP_401_UNAUTHORIZED
             )
-            res.set_cookie(
-                key='refresh_token',
-                value=refresh_token,
-                httponly=True,
-                secure=False,
-                samesite='Lax',
-                max_age=settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds()
-            )
-            return res
-        else:
-            return Response({"error": "Invalid credentials. Please check your email and password."}, status=status.HTTP_401_UNAUTHORIZED)
 
+        # Check if authenticated user is a student
+        if user.user_type != User.userType.STUDENT:
+            return Response(
+                {"error": "Invalid user type. Only students can register."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Check if student profile exists
+        if not hasattr(user, 'student_profile') or user.student_profile is None:
+            return Response(
+                {"error": "Student profile not found."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check teacher-student relationship
+        try:
+            relation = TeacherStudentProfile.objects.select_related('student', 'teacher').get(
+                student=user.student_profile,
+                teacher=teacher_user.teacher_profile
+            )
+        except TeacherStudentProfile.DoesNotExist:
+            return Response(
+                {"error": f"You are not registered as a student for {teacher_username}."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Check if student is active (not blocked)
+        if not relation.is_active:
+            return Response(
+                {"error": "You are blocked by the teacher."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Generate tokens
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
+
+        # Store refresh token in user model
+        user.refresh_token = refresh_token
+        user.save(update_fields=['refresh_token'])
+
+        # Prepare response
+        res = Response(UserInfoSerializer(user).data, status=status.HTTP_200_OK)
+        
+        # Set cookies
+        res.set_cookie(
+            key='access_token',
+            value=access_token,
+            httponly=True,
+            secure=False,  
+            samesite='Lax',
+            max_age=settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds()
+        )
+        res.set_cookie(
+            key='refresh_token',
+            value=refresh_token,
+            httponly=True,
+            secure=False, 
+            samesite='Lax',
+            max_age=settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds()
+        )
+        
+        return res
 
 # logout view supports blacklist
 class LogoutView(APIView):
