@@ -7,6 +7,8 @@ from assessments import views as assessments_views
 
 urlpatterns = [
     # Rating endpoints
+    
+    path('change-password/', user_views.ChangePasswordAPIView.as_view(), name='change-password'),
     path('courses/<uuid:course_id>/list-ratings/', course_views.RatingListAPIView.as_view(), name='course-ratings-list'),
     path('courses/<uuid:course_id>/ratings/create/', course_views.RatingCreateAPIView.as_view(), name='course-ratings-create'),
     path('course/retrive-upadate-delete-ratings/<uuid:id>/', course_views.RatingRetrieveUpdateDestroyAPIView.as_view(), name='rating-detail'),

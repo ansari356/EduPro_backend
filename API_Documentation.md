@@ -796,6 +796,37 @@ EduPro API uses token-based authentication via cookies.
     }
     ```
 
+#### 1.17. Change Password
+- **URL**: `/api/v1/change-password/`
+- **Method**: `PUT`
+- **Permissions**: `IsAuthenticated`
+- **Description**: Allows an authenticated user to change their password.
+- **Request Body**:
+    ```json
+    {
+        "old_password": "string",
+        "new_password": "string"
+    }
+    ```
+- **Response (Success - 200 OK)**:
+    ```json
+    {
+        "message": "Password changed successfully"
+    }
+    ```
+- **Response (Error - 400 Bad Request)**:
+    ```json
+    {
+        "error": "Old password is incorrect"
+    }
+    ```
+    or
+    ```json
+    {
+        "new_password": ["This field is required."]
+    }
+    ```
+
 ---
 
 ### 2. Course Category Management
