@@ -271,7 +271,7 @@ class Lesson(models.Model):
     module = models.ForeignKey(CourseModule, on_delete=models.CASCADE, related_name='lessons')
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
-    order = models.PositiveIntegerField(default=1)
+    order = models.PositiveIntegerField(blank=True, null=True)
     is_published = models.BooleanField(default=True)
     is_free = models.BooleanField(default=False)
     duration = models.PositiveIntegerField(default=0)
@@ -294,6 +294,33 @@ class Lesson(models.Model):
     
     def save(self, *args, **kwargs):
         creating=self._state.adding
+        with transaction.atomic():
+            if creating:
+                if self.order is None:
+                    last_lesson_order=Lesson.objects.filter(module=self.module).aggregate(models.Max('order'))['order__max']
+                    self.order=1 if last_lesson_order is None else last_lesson_order+1
+
+                else:
+                    if Lesson.objects.filter(module=self.module,order=self.order).exists():
+                        Lesson.objects.filter(module=self.module,order__gte=self.order).update(order=models.F('order') + 1)
+            else:
+                old_order=Lesson.objects.get(pk=self.pk).order
+                
+                if self.order != old_order:
+                    if self.order < old_order:
+                        Lesson.objects.filter(
+                            module=self.module,
+                            order__gte=self.order,
+                            order__lt=old_order
+                        ).update(order=models.F('order')+1)
+            
+                else:
+                    Lesson.objects.filter(
+                        module=self.module,
+                        order__lte=self.order,
+                        order__gt=old_order
+                    ).update(order=models.F('order') - 1)
+        
         super().save(*args, **kwargs)
         
         if self.module:
@@ -346,7 +373,7 @@ class Lesson(models.Model):
     
     class Meta:
         ordering = ['order']
-        unique_together = ('module', 'order')
+        # unique_together = ('module', 'order')
         
     @property
     def teacher(self):
