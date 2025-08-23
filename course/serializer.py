@@ -355,7 +355,7 @@ class LessonSimpleSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Lesson
-        fields = ['id','title', 'duration','thumbnail']
+        fields = ['id','title','order', 'duration','thumbnail']
         read_only_fields = fields
         
     def get_thumbnail(self, obj):
@@ -566,7 +566,7 @@ class CourseModuleDetailSerializer(serializers.ModelSerializer):
 class CourseModuleCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CourseModule
-        fields = [ 'title', 'description', 'order','image']
+        fields = [ 'title', 'description', 'order']
     
     def validate_title(self, value):
         if not value.strip():
