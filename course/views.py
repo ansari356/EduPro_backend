@@ -14,13 +14,13 @@ CourseModuleUpdateSerializer,
 CouponSerializer,
 CourseEnrollmentCreateSerializer,CouesEnrollmentSerializer, ModuleEnrollmentSerializer, ModuleEnrollmentCreateSerializer ,
  CourseRatingCreateSerializer,RatingListSerializer,EarningSerializer,CouponUsageSerialzier,
- CourseSerializerForTeacher,StudentLessonProgressSerilaizer
+ CourseSerializerForTeacher,StudentLessonProgressSerilaizer, VdoCipherUploadCredentialSerializer
 )
 from rest_framework.exceptions import ValidationError
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter , OrderingFilter
 from rest_framework.pagination import PageNumberPagination
-from .utilis import get_vdocipher_video_details
+from .utilis import get_vdocipher_video_details, get_vdocipher_upload_credentials
 from django.db import models
 from userAuth.serializer import StudentProfileSerializer , userSerializer
 from django.db import connection
@@ -520,7 +520,7 @@ class LessonCreateView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         lesson = self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        return Response({'lesson_id': lesson.id, 'message': 'Lesson created, video upload in progress.'}, status=status.HTTP_201_CREATED, headers=headers)
+        return Response({'lesson_id': lesson.id, 'message': 'Lesson created successfully.'}, status=status.HTTP_201_CREATED, headers=headers)
 
 
 
@@ -565,6 +565,22 @@ class ModuleEnrollmentAPIView(generics.CreateAPIView):
     serializer_class = ModuleEnrollmentCreateSerializer
     permission_classes = [IsStudent]
 
+class VdoCipherUploadCredentialAPIView(generics.GenericAPIView):
+    serializer_class = VdoCipherUploadCredentialSerializer
+    permission_classes = [IsTeacher]
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        title = serializer.validated_data['title']
+
+        try:
+            upload_credentials = get_vdocipher_upload_credentials(title)
+            return Response(upload_credentials, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 class CheckVideoStatusAPIView(generics.GenericAPIView):
     permission_classes = [IsTeacher]
 
@@ -607,7 +623,7 @@ class CheckVideoStatusAPIView(generics.GenericAPIView):
 # student lesson progress
 class UpdateLessonProgressView(generics.RetrieveUpdateAPIView):
     serializer_class = StudentLessonProgressSerilaizer
-    permission_classes = [permissions.IsAuthenticated, IsLessonAccessible]
+    permission_classes = [IsLessonAccessible]
 
     def get_object(self):
         lesson_id = self.kwargs.get('id')

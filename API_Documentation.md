@@ -167,7 +167,7 @@ EduPro API uses token-based authentication via cookies.
     ```
 
 #### 1.5. Refresh Token (Student)
-- **URL**: `/api/v1/student/token/refresh/<teacher_username>/`
+- **URL**: `/api/v1/student/refresh/<teacher_username>/`
 - **Method**: `POST`
 - **Permissions**: `IsAuthenticated`
 - **Description**: Refreshes the student's access token using the refresh token stored in cookies, specific to a teacher.
@@ -546,8 +546,6 @@ EduPro API uses token-based authentication via cookies.
             "first_name": "string",
             "last_name": "string",
             "email": "string",
-            "phone": "string",
-            "user_type": "string",
             "username": "string",
             "slug": "string"
         },
@@ -1185,7 +1183,7 @@ EduPro API uses token-based authentication via cookies.
 - **Response (Error - 400 Bad Request)**:
     ```json
     {
-        "error": "Enrollment ID is required for teachers"
+        "student_id": "student id is required"
     }
     ```
 - **Response (Error - 403 Forbidden)**:
@@ -1718,4 +1716,359 @@ EduPro API uses token-based authentication via cookies.
     ```json
     {
         "detail": "Not found."
+    }
+    ```
+
+#### 7.6. Update Lesson Progress
+- **URL**: `/api/v1/lessons/<uuid:id>/status/`
+- **Method**: `PUT` / `PATCH`
+- **Permissions**: `IsAuthenticated`, `IsLessonAccessible`
+- **Description**: Updates the progress of a specific lesson for the authenticated student. A `StudentLessonProgress` object must already exist for the student and lesson. This is typically created automatically when a student enrolls in a course.
+- **URL Parameters**:
+    - `id`: The UUID of the lesson.
+- **Request Body**:
+    ```json
+    {
+        "is_completed": "boolean"
+    }
+    ```
+- **Response (Success - 200 OK)**:
+    ```json
+    {
+        "id": "integer",
+        "is_completed": "boolean"
+    }
+    ```
+- **Response (Error - 403 Forbidden)**:
+    ```json
+    {
+        "detail": "You don't have permission to access this lesson."
+    }
+    ```
+- **Response (Error - 404 Not Found)**:
+    ```json
+    {
+        "detail": "Not found."
+    }
+    ```
+
+#### 7.7. Check Video Status
+- **URL**: `/api/v1/video/check-status/<lesson_id>`
+- **Method**: `GET`
+- **Permissions**: `IsTeacher`
+- **Description**: Checks the processing status of a video associated with a lesson.
+- **URL Parameters**:
+    - `lesson_id`: The UUID of the lesson.
+- **Response (Success - 200 OK)**:
+    ```json
+    {
+        "message": "video is ready"
+    }
+    ```
+    or
+    ```json
+    {
+        "message": "video is uploading"
+    }
+    ```
+    or
+    ```json
+    {
+        "message": "Video status: [status]"
+    }
+    ```
+- **Response (Error - 400 Bad Request)**:
+    ```json
+    {
+        "message": "Video processing failed. Please try uploading again."
+    }
+    ```
+- **Response (Error - 404 Not Found)**:
+    ```json
+    {
+        "detail": "Not found."
+    }
+    ```
+
+---
+
+### 8. Video Management
+
+#### 8.1. Get VdoCipher Upload Credentials
+- **URL**: `/api/v1/course/create-vdocipher-upload-credentials/`
+- **Method**: `POST`
+- **Permissions**: `IsTeacher`
+- **Description**: Retrieves VdoCipher upload credentials for a given video title. This is the first step in uploading a video.
+- **Request Body**:
+    ```json
+    {
+        "title": "string"
+    }
+    ```
+- **Response (Success - 200 OK)**:
+    ```json
+    {
+        "status": "success",
+        "data": {
+            "upload_url": "string",
+            "upload_id": "string",
+            "vdo_cipher_video_id": "string"
+        }
+    }
+    ```
+- **Response (Error - 400 Bad Request)**:
+    ```json
+    {
+        "error": "string" // e.g., "Title is required." or an error from VdoCipher API
+    }
+    ```
+- **Response (Error - 403 Forbidden)**:
+    ```json
+    {
+        "detail": "You are not a Teacher."
+    }
+    ```
+
+---
+
+### 9. Assessment Management
+
+#### 9.1. Teacher: List/Create Assessments
+- **URL**: `/api/v1/teacher/assessments/`
+- **Method**: `GET` / `POST`
+- **Permissions**: `IsTeacher`
+- **Description**: Lists assessments created by the teacher or creates a new assessment.
+- **Request Body (POST)**:
+    ```json
+    {
+        "title": "string",
+        "description": "string (optional)",
+        "course": "uuid (optional, if creating for a specific course)",
+        "assessment_type": "string (e.g., 'quiz', 'exam')",
+        "passing_grade": "float (optional)"
+    }
+    ```
+- **Response (Success - 200 OK / 201 Created)**: (Details of the assessment(s))
+
+#### 9.2. Teacher: Retrieve/Update/Delete Assessment
+- **URL**: `/api/v1/teacher/assessments/<uuid:assessment_id>/`
+- **Method**: `GET` / `PUT` / `PATCH` / `DELETE`
+- **Permissions**: `IsTeacher`
+- **Description**: Retrieves, updates, or deletes a specific assessment.
+- **URL Parameters**:
+    - `assessment_id`: The UUID of the assessment.
+- **Response (Success - 200 OK / 204 No Content)**: (Details of the assessment or success message)
+
+#### 9.3. Teacher: List/Create Questions for Assessment
+- **URL**: `/api/v1/teacher/assessments/<uuid:assessment_id>/questions/`
+- **Method**: `GET` / `POST`
+- **Permissions**: `IsTeacher`
+- **Description**: Lists questions for a specific assessment or creates a new question for it.
+- **Request Body (POST)**:
+    ```json
+    {
+        "question_text": "string",
+        "question_type": "string (e.g., 'multiple_choice', 'true_false', 'short_answer')",
+        "points": "integer",
+        "options": "array of option objects (for multiple choice/true false)"
+    }
+    ```
+- **Response (Success - 200 OK / 201 Created)**: (Details of the question(s))
+
+#### 9.4. Teacher: Retrieve/Update/Delete Question
+- **URL**: `/api/v1/teacher/assessments/questions/<uuid:question_id>/`
+- **Method**: `GET` / `PUT` / `PATCH` / `DELETE`
+- **Permissions**: `IsTeacher`
+- **Description**: Retrieves, updates, or deletes a specific question.
+- **URL Parameters**:
+    - `question_id`: The UUID of the question.
+- **Response (Success - 200 OK / 204 No Content)**: (Details of the question or success message)
+
+#### 9.5. Teacher: List/Create Options for Question
+- **URL**: `/api/v1/teacher/questions/<uuid:question_id>/options/`
+- **Method**: `GET` / `POST`
+- **Permissions**: `IsTeacher`
+- **Description**: Lists options for a specific question or creates new options.
+- **Request Body (POST)**:
+    ```json
+    {
+        "option_text": "string",
+        "is_correct": "boolean"
+    }
+    ```
+- **Response (Success - 200 OK / 201 Created)**: (Details of the option(s))
+
+#### 9.6. Teacher: Retrieve/Update/Delete Option
+- **URL**: `/api/v1/teacher/questions/options/<uuid:option_id>/`
+- **Method**: `GET` / `PUT` / `PATCH` / `DELETE`
+- **Permissions**: `IsTeacher`
+- **Description**: Retrieves, updates, or deletes a specific option for a question.
+- **URL Parameters**:
+    - `option_id`: The UUID of the option.
+- **Response (Success - 200 OK / 204 No Content)**: (Details of the option or success message)
+
+#### 9.7. Student: List Assessments
+- **URL**: `/api/v1/student/assessments/<str:teacher_username>/`
+- **Method**: `GET`
+- **Permissions**: `IsStudent`
+- **Description**: Lists assessments available from a specific teacher.
+- **URL Parameters**:
+    - `teacher_username`: The username of the teacher.
+- **Response (Success - 200 OK)**: (List of assessments)
+
+#### 9.8. Student: Start Assessment
+- **URL**: `/api/v1/student/assessments/<uuid:assessment_id>/<str:teacher_username>/start/`
+- **Method**: `POST`
+- **Permissions**: `IsStudent`
+- **Description**: Starts an assessment attempt for the student.
+- **URL Parameters**:
+    - `assessment_id`: The UUID of the assessment.
+    - `teacher_username`: The username of the teacher.
+- **Request Body**: None
+- **Response (Success - 201 Created)**:
+    ```json
+    {
+        "attempt_id": "uuid",
+        "assessment_title": "string",
+        "questions": [
+            {
+                "question_id": "uuid",
+                "question_text": "string",
+                "question_type": "string",
+                "points": "integer",
+                "options": [
+                    {
+                        "option_id": "uuid",
+                        "option_text": "string"
+                    }
+                    // ... more options
+                ]
+            }
+            // ... more questions
+        ]
+    }
+    ```
+
+#### 9.9. Student: Submit Assessment Attempt
+- **URL**: `/students/attempts/<uuid:attempt_id>/submit/`
+- **Method**: `POST`
+- **Permissions**: `IsStudent`
+- **Description**: Submits an assessment attempt with student answers.
+- **URL Parameters**:
+    - `attempt_id`: The UUID of the assessment attempt.
+- **Request Body**:
+    ```json
+    {
+        "answers": [
+            {
+                "question_id": "uuid",
+                "selected_option_id": "uuid (optional, for multiple choice)",
+                "short_answer_text": "string (optional, for short answer)"
+            }
+            // ... more answers
+        ]
+    }
+    ```
+- **Response (Success - 200 OK)**:
+    ```json
+    {
+        "message": "Assessment submitted successfully. Results will be available shortly."
+    }
+    ```
+
+#### 9.10. Student: List All Attempts
+- **URL**: `/student/<str:teacher_username>/attempts/`
+- **Method**: `GET`
+- **Permissions**: `IsStudent`
+- **Description**: Lists all assessment attempts made by the student for a given teacher.
+- **URL Parameters**:
+    - `teacher_username`: The username of the teacher.
+- **Response (Success - 200 OK)**: (List of attempt summaries)
+
+#### 9.11. Student: Attempt Result
+- **URL**: `/student/attempts/<uuid:attempt_id>/result/`
+- **Method**: `GET`
+- **Permissions**: `IsStudent`
+- **Description**: Retrieves the result of a specific assessment attempt.
+- **URL Parameters**:
+    - `attempt_id`: The UUID of the assessment attempt.
+- **Response (Success - 200 OK)**:
+    ```json
+    {
+        "assessment_title": "string",
+        "total_score": "float",
+        "passing_grade": "float",
+        "is_passed": "boolean",
+        "answers": [
+            {
+                "question_text": "string",
+                "question_type": "string",
+                "points_awarded": "integer",
+                "correct_answer": "string",
+                "student_answer": "string",
+                "is_correct": "boolean"
+            }
+            // ... more answers
+        ]
+    }
+    ```
+
+#### 9.12. Teacher: Pending Grading List
+- **URL**: `/api/v1/teacher/grading/pending/` (and other variations with course/assessment/question filters)
+- **Method**: `GET`
+- **Permissions**: `IsTeacher`
+- **Description**: Retrieves a list of assessment answers that require manual grading by the teacher. Supports filtering by course, assessment, or question type.
+- **Response (Success - 200 OK)**: (List of pending grading items)
+
+#### 9.13. Teacher: Grade Specific Answer
+- **URL**: `/api/v1/teacher/grading/answer/<uuid:answer_id>/`
+- **Method**: `PUT` / `PATCH`
+- **Permissions**: `IsTeacher`
+- **Description**: Allows the teacher to grade a specific answer that requires manual grading.
+- **URL Parameters**:
+    - `answer_id`: The UUID of the answer to grade.
+- **Request Body**:
+    ```json
+    {
+        "points_awarded": "integer"
+    }
+    ```
+- **Response (Success - 200 OK)**: (Confirmation message)
+
+---
+
+### 10. Video Management
+
+#### 10.1. Get VdoCipher Upload Credentials
+- **URL**: `/api/v1/course/create-vdocipher-upload-credentials/`
+- **Method**: `POST`
+- **Permissions**: `IsTeacher`
+- **Description**: Retrieves VdoCipher upload credentials for a given video title. This is the first step in uploading a video.
+- **Request Body**:
+    ```json
+    {
+        "title": "string"
+    }
+    ```
+- **Response (Success - 200 OK)**:
+    ```json
+    {
+        "status": "success",
+        "data": {
+            "upload_url": "string",
+            "upload_id": "string",
+            "vdo_cipher_video_id": "string"
+        }
+    }
+    ```
+- **Response (Error - 400 Bad Request)**:
+    ```json
+    {
+        "error": "string" // e.g., "Title is required." or an error from VdoCipher API
+    }
+    ```
+- **Response (Error - 403 Forbidden)**:
+    ```json
+    {
+        "detail": "You are not a Teacher."
     }

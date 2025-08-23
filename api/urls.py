@@ -6,6 +6,7 @@ from assessments import views as assessments_views
 
 
 urlpatterns = [
+    path('course/create-vdocipher-upload-credentials/', course_views.VdoCipherUploadCredentialAPIView.as_view(), name='create-vdocipher-upload-credentials'),
     # Rating endpoints
     
     path('change-password/', user_views.ChangePasswordAPIView.as_view(), name='change-password'),
