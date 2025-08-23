@@ -29,7 +29,7 @@ class User(AbstractUser):
     last_login = models.DateTimeField(null=True, blank=True)
     slug = models.SlugField(max_length=255, unique=True,blank=True, null=True)
     refresh_token = models.CharField(max_length=255, null=True, blank=True)
-    otp=models.CharField(max_length=25,null=True)
+    otp=models.CharField(max_length=25,null=True,blank=True)
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
     
