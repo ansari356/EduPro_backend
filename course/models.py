@@ -8,6 +8,7 @@ from django.db.models.functions import Coalesce
 from PIL import Image
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Sum,Count
+from django.db import models, transaction
 # Create your models here.
 
 class CourseCategory(models.Model):
@@ -155,8 +156,7 @@ class CourseModule(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='modules')
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
-    image = models.ImageField(upload_to='course_modules/images/', null=True, blank=True)
-    order = models.PositiveIntegerField(default=1)
+    order = models.PositiveIntegerField(blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     is_free = models.BooleanField(default=False)
     is_published = models.BooleanField(default=True)
@@ -187,9 +187,42 @@ class CourseModule(models.Model):
     
     class Meta:
         ordering = ['order']
-        unique_together = ('course', 'order')
+        # unique_together = ('course', 'order')
 
+    def save(self, *args, **kwargs) :
+        is_new = self._state.adding
+        with transaction.atomic():
+            if is_new:
+                # new creation
+                # if not order value
+                if self.order is None:
+                    last_module_order=CourseModule.objects.filter(course=self.course).aggregate(models.Max('order'))['order__max']
+                    self.order=1 if last_module_order is None else last_module_order+1
+                # if user enter order value
+                else:
+                # if user enter order value
+                    if CourseModule.objects.filter(course=self.course, order=self.order).exists():
+                        CourseModule.objects.filter(course=self.course, order__gte=self.order).update(order=models.F('order') + 1)
+                # in order update
+            else:
+                old_order=CourseModule.objects.get(pk=self.pk).order
+                
+                if self.order != old_order:
+                    if self.order < old_order:
+                        CourseModule.objects.filter(
+                            course=self.course,
+                            order__gte=self.order,
+                            order__lt=old_order
+                        ).update(order=models.F('order') + 1)
 
+                    else:
+                        CourseModule.objects.filter(
+                            course=self.course,
+                            order__lte=self.order,
+                            order__gt=old_order
+                        ).update(order=models.F('order') - 1)
+        super().save(*args, **kwargs)
+        
 class ModuleEnrollment(models.Model):
     class EnrollmentStatus(models.TextChoices):
         PENDING = 'pending', 'Pending'
@@ -262,6 +295,10 @@ class Lesson(models.Model):
     def save(self, *args, **kwargs):
         creating=self._state.adding
         super().save(*args, **kwargs)
+        
+        if self.module:
+            self.module.update_totals()
+
         
         if self.thumbnail:
             if self.thumbnail:

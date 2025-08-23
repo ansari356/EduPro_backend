@@ -53,21 +53,24 @@ class IsStudentEnrolledAndAssessmentAvailable(BasePermission):
             enrolled = CourseEnrollment.objects.filter(
                 student=student,
                 course=assessment.course,
-                is_active=True
+                is_active=True,
+                access_type=CourseEnrollment.AccessType.FULL_ACCESS
             ).exists()
 
         elif assessment.module:
             enrolled = ModuleEnrollment.objects.filter(
                 student=student,
                 module=assessment.module,
-                is_active=True
+                is_active=True,
+                status=ModuleEnrollment.EnrollmentStatus.ACTIVE
             ).exists()
 
         elif assessment.lesson:
             enrolled = ModuleEnrollment.objects.filter(
                 student=student,
                 module=assessment.lesson.module,
-                is_active=True
+                is_active=True,
+                status=ModuleEnrollment.EnrollmentStatus.ACTIVE
             ).exists()
 
         if not enrolled:
@@ -126,21 +129,24 @@ class CanSubmitAttempt(BasePermission):
             enrolled = CourseEnrollment.objects.filter(
                 student=student,
                 course=assessment.course,
-                is_active=True
+                is_active=True,
+                access_type=CourseEnrollment.AccessType.FULL_ACCESS
             ).exists()
 
         elif assessment.module:
             enrolled = ModuleEnrollment.objects.filter(
                 student=student,
                 module=assessment.module,
-                is_active=True
+                is_active=True,
+                status=ModuleEnrollment.EnrollmentStatus.ACTIVE
             ).exists()
 
         elif assessment.lesson:
             enrolled = ModuleEnrollment.objects.filter(
                 student=student,
                 module=assessment.lesson.module,
-                is_active=True
+                is_active=True,
+                status=ModuleEnrollment.EnrollmentStatus.ACTIVE
             ).exists()
 
         if not enrolled:
