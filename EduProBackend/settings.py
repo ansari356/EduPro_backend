@@ -173,7 +173,7 @@ REST_FRAMEWORK = {
         'userAuth.authentication.CookieJWTAuthentication',
     ),
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticated",
+        "rest_framework.permissions.AllowAny",
     ],
 }
 
