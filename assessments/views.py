@@ -190,7 +190,7 @@ class StudentAssessmentListView(generics.ListAPIView):
                 models.Q(module__course__teacher=teacher) & models.Q(module__in=enrolled_modules)
             ) |
             (
-                models.Q(lesson__module__course__teacher=teacher) & models.Q(lesson__module__in=enrolled_modules)
+                models.Q(lesson__module__course__teacher=teacher) &(models.Q(lesson__module__in=enrolled_modules) | models.Q(lesson__module__course__in=enrolled_courses))
             )
         ).distinct().order_by('-created_at')
 
