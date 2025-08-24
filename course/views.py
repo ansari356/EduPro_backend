@@ -623,7 +623,7 @@ class CheckVideoStatusAPIView(generics.GenericAPIView):
 # student lesson progress
 class UpdateLessonProgressView(generics.RetrieveUpdateAPIView):
     serializer_class = StudentLessonProgressSerilaizer
-    permission_classes = [IsLessonAccessible]
+    permission_classes = [permissions.IsAuthenticated, IsLessonAccessible,IsStudent]
 
     def get_object(self):
         lesson_id = self.kwargs.get('id')

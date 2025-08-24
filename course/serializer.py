@@ -354,7 +354,7 @@ class LessonSimpleSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Lesson
-        fields = ['id','title', 'duration','thumbnail']
+        fields = ['id','title','order', 'duration','thumbnail']
         read_only_fields = fields
         
     def get_thumbnail(self, obj):
@@ -431,17 +431,7 @@ class LessonCreateUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Image larger than 2 MB")
         return value
     
-    def validate(self, attrs):
-        module = attrs.get('module') or (self.instance.module if self.instance else None)
-        order = attrs.get('order') or (self.instance.order if self.instance else None)
-
-        if module and order:
-            existing = Lesson.objects.filter(module=module, order=order)
-            if self.instance:
-                existing = existing.exclude(id=self.instance.id)
-            if existing.exists():
-                raise serializers.ValidationError("there is already lesson in this order")
-        return attrs
+    
     
     def create(self, validated_data):
         lesson = Lesson.objects.create(**validated_data)
@@ -501,7 +491,7 @@ class CourseModuleDetailSerializer(serializers.ModelSerializer):
 class CourseModuleCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CourseModule
-        fields = [ 'title', 'description', 'order','image']
+        fields = [ 'title', 'description', 'order','is_published','is_free','price']
     
     def validate_title(self, value):
         if not value.strip():

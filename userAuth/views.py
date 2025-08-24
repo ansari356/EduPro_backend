@@ -7,7 +7,8 @@ from django.core.exceptions import PermissionDenied
 from .serializer import(RegisterSerializer,StudentRegistrationSerializer ,StudentProfileSerializer , 
 TeacherProfileSerializer, TeacherStudentProfileSerializer, 
 GetStudentRelatedToTeacherSerializer,JoinAuthenticatedStudent,
-LoginSerializer,UserInfoSerializer,ChangePasswordSerializer
+LoginSerializer,UserInfoSerializer,ChangePasswordSerializer,RequestPasswordResetSerializer, VerifyOTPSerializer, ResetPasswordSerializer
+
 )
 from .models import User , StudentProfile , TeacherProfile, TeacherStudentProfile
 from course.permissions import IsStudent , IsTeacher
@@ -636,3 +637,33 @@ class ChangePasswordAPIView(generics.GenericAPIView):
                 return Response({'error': 'Old password is incorrect'}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Password Reset
+
+class RequestPasswordResetView(generics.GenericAPIView):
+    serializer_class = RequestPasswordResetSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"message": "OTP sent to your email."}, status=status.HTTP_200_OK)
+
+class VerifyOTPView(generics.GenericAPIView):
+    serializer_class = VerifyOTPSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response({"message": "OTP verified successfully"}, status=status.HTTP_200_OK)
+
+    
+class ResetPasswordView(generics.GenericAPIView):
+    serializer_class = ResetPasswordSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({"message": "Password reset successfully"}, status=status.HTTP_200_OK)

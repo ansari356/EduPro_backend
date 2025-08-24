@@ -55,7 +55,7 @@ class CourseModuleAdmin(admin.ModelAdmin):
 admin.site.register(CourseModule, CourseModuleAdmin)
 
 class LessonAdmin(admin.ModelAdmin):
-    list_display =['id','module','title','description','is_published','created_at','is_free','duration']
+    list_display =['id','module','title','description','is_published','order','created_at','is_free','duration']
     list_filter = ('title','module')
     search_fields = ('title','module')
 admin.site.register(Lesson, LessonAdmin)
