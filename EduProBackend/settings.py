@@ -227,3 +227,21 @@ CELERY_BEAT_SCHEDULE = {
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50MB
+
+
+# Email Setting
+
+import ssl
+import certifi
+
+ssl._create_default_https_context = ssl._create_unverified_context
+ssl_context = ssl.create_default_context(cafile=certifi.where())
+EMAIL_BACKEND = 'userAuth.backends.email_backend.EmailBackend'
+# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
+EMAIL_HOST_USER = ""
+EMAIL_HOST_PASSWORD = ""  # App Password 
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
