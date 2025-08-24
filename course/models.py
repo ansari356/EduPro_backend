@@ -282,7 +282,7 @@ class Lesson(models.Model):
         choices=VideoProcessingStatus.choices,
         default=VideoProcessingStatus.PRE_UPLOAD
     )
-    
+
     # Content fields
     video = models.FileField(upload_to='lessons/videos/', blank=True, null=True)
     document = models.FileField(upload_to='lessons/documents/', blank=True, null=True)
@@ -314,12 +314,12 @@ class Lesson(models.Model):
                             order__lt=old_order
                         ).update(order=models.F('order')+1)
             
-                else:
-                    Lesson.objects.filter(
-                        module=self.module,
-                        order__lte=self.order,
-                        order__gt=old_order
-                    ).update(order=models.F('order') - 1)
+                    else:
+                        Lesson.objects.filter(
+                            module=self.module,
+                            order__lte=self.order,
+                            order__gt=old_order
+                        ).update(order=models.F('order') - 1)
         
         super().save(*args, **kwargs)
         
