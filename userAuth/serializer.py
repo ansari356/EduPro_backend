@@ -3,6 +3,10 @@ from django.contrib.auth.password_validation import validate_password
 from .models import User , StudentProfile , TeacherProfile, TeacherStudentProfile
 from django.db import transaction
 from course.models import Course
+from .utilis import generate_otp, send_otp_email
+from datetime import timedelta
+from django.utils import timezone
+
 class RegisterSerializer(serializers.ModelSerializer):
     password1 = serializers.CharField(write_only=True,required=True,validators=[validate_password])
     password2 = serializers.CharField(write_only=True,required=True)
@@ -250,3 +254,76 @@ class JoinAuthenticatedStudent(serializers.ModelSerializer):
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True)
+    
+
+class RequestPasswordResetSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    
+    def validate_email(self, value):
+        if not User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("User with this email does not exist.")
+        return value
+
+    def save(self):
+        email = self.validated_data['email']
+        user = User.objects.get(email=email)
+
+        otp = generate_otp()
+        user.otp = otp
+        user.otp_expiry = timezone.now() + timedelta(minutes=10)
+        user.save()
+
+        send_otp_email(email, otp)
+        return user
+    
+class VerifyOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=6)
+
+    def validate(self, data):
+        email, otp = data['email'], data['otp']
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            raise serializers.ValidationError({"email": "Invalid email"})
+
+        if not user.otp or user.otp != otp:
+            raise serializers.ValidationError({"otp": "Invalid OTP"})
+
+        if timezone.now() > user.otp_expiry:
+            raise serializers.ValidationError({"otp": "OTP expired"})
+
+        return data
+
+class ResetPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=6)
+    new_password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate(self, data):
+        email, otp = data['email'], data['otp']
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            raise serializers.ValidationError({"email": "Invalid email"})
+
+        if not user.otp or user.otp != otp:
+            raise serializers.ValidationError({"otp": "Invalid OTP"})
+
+        if timezone.now() > user.otp_expiry:
+            raise serializers.ValidationError({"otp": "OTP expired"})
+
+        data['user'] = user
+        return data
+
+    def save(self):
+        user = self.validated_data['user']
+        new_password = self.validated_data['new_password']
+
+        user.set_password(new_password)
+        user.otp = None
+        user.otp_expiry = None
+        user.save()
+        return user

@@ -1,11 +1,17 @@
 from django.urls import path
 from userAuth import views as user_views
-from userAuth.views import LoginView, LogoutView, LoginStudentAPIView , CookieTokenRefreshView,StudentRefreshView
+from userAuth.views import LoginView, LogoutView, LoginStudentAPIView , CookieTokenRefreshView,StudentRefreshView,RequestPasswordResetView,VerifyOTPView,ResetPasswordView
 from course import views as course_views
 from assessments import views as assessments_views
 
 
 urlpatterns = [
+     # Password Reset
+   path('password-reset/request/', RequestPasswordResetView.as_view(), name='password_reset_request'),
+    path('password-reset/verify/', VerifyOTPView.as_view(), name='password_reset_verify'),
+    path('password-reset/confirm/', ResetPasswordView.as_view(), name='password_reset_confirm'),
+     
+     
     # Rating endpoints
     
     path('change-password/', user_views.ChangePasswordAPIView.as_view(), name='change-password'),
