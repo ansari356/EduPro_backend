@@ -1,7 +1,7 @@
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django.db.models import F, Avg
-from .models import Course , CourseEnrollment, Lesson, Rating
+from .models import Course , CourseEnrollment, Lesson, Rating,StudentLessonProgress
 from .tasks import delete_video_from_vdocipher_task
 import logging
 
@@ -92,3 +92,16 @@ def update_teacher_rating(sender, instance, **kwargs):
         teacher.rating = 0
         
     teacher.save(update_fields=['rating'])
+
+
+@receiver([post_save, post_delete], sender=StudentLessonProgress)
+def update_enrollment_progress(sender, instance, **kwargs):
+    
+    try:
+        enrollment = CourseEnrollment.objects.get(
+            student=instance.student,
+            course=instance.lesson.module.course
+        )
+        enrollment.calc_progress()
+    except CourseEnrollment.DoesNotExist:
+        pass

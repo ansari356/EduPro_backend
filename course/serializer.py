@@ -223,7 +223,26 @@ class CouesEnrollmentSerializer(serializers.ModelSerializer):
         fields = ['id', 'teacher', 'student', 'course', 'status', 'is_active', 'date']
         read_only_fields = ['id', 'date']
 
-
+class CourseEnrollmentDetailSerializer(serializers.ModelSerializer):
+    course_name = serializers.CharField(source='course.title', read_only=True)
+    teacher_name = serializers.CharField(source='course.teacher.user.get_full_name', read_only=True)
+    student_name = serializers.CharField(source='student.user.get_full_name', read_only=True)
+    class Meta:
+        model = CourseEnrollment
+        fields=['id','course_name','student_name','teacher_name','status','access_type','is_active','is_completed','progress','last_activity','enrollment_date','ended_date']
+    
+        read_only_fields = fields
+        
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 class StudentSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudentProfile
