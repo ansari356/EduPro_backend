@@ -4,6 +4,7 @@ import uuid
 from userAuth.models import StudentProfile, TeacherProfile
 from course.models import Lesson,Course,CourseModule
 from django.core.exceptions import ValidationError
+from django.db import models, transaction
 # Create your models here.
 
 class Assessment(models.Model):
@@ -138,7 +139,7 @@ class Question(models.Model):
     question_text=models.TextField() # what is  questition
     question_type=models.CharField(max_length=20,choices=QuestionType.choices)
     mark=models.DecimalField(max_digits=5, decimal_places=2, default=1.00)
-    order=models.PositiveIntegerField(default=1)
+    order=models.PositiveIntegerField(blank=True, null=True)
     explanation = models.TextField(blank=True, null=True, help_text="Explanation for the correct answer")
     image=models.ImageField(upload_to='questions/images/',blank=True, null=True)
     
@@ -148,9 +149,36 @@ class Question(models.Model):
     
     class Meta:
         ordering=['order']
-        unique_together=('assessment','order')
+        # unique_together=('assessment','order')
     
     def save(self, *args, **kwargs):
+        is_new = self._state.adding
+        with transaction.atomic():
+            if is_new:
+                if self.order is None:
+                    last_question_order=Question.objects.filter(assessment=self.assessment).aggregate(models.Max('order'))['order__max']
+                    self.order=1 if last_question_order is None else last_question_order+1
+                else:
+                    if Question.objects.filter(assessment=self.assessment,order=self.order).exists():
+                        Question.objects.filter(assessment=self.assessment,order__gte=self.order).update(order=models.F('order')+1)
+
+            else:
+                old_order=Question.objects.get(pk=self.pk).order
+                if self.order != old_order:
+                    if self.order < old_order:
+                        Question.objects.filter(
+                            assessment=self.assessment,
+                            order__gte=self.order,
+                            order__lt=old_order
+                        ).update(order=models.F('order') + 1)
+
+                    else:
+                        Question.objects.filter(
+                            assessment=self.assessment,
+                            order__lte=self.order,
+                            order__gt=old_order
+                        ).update(order=models.F('order') - 1)
+        
         super().save(*args, **kwargs)
         self.assessment.update_totals()
         
@@ -165,15 +193,44 @@ class QuestionOption(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name='options')
     option_text = models.CharField(max_length=500)
     is_correct = models.BooleanField(default=False)
-    order = models.PositiveIntegerField(default=1)
+    order=models.PositiveIntegerField(blank=True, null=True)
     
     class Meta:
         ordering = ['order']
-        unique_together = ('question', 'order')
+        # unique_together = ('question', 'order')
         
     def __str__(self):
-        return f"{self.option_text[:50]}... ({'✓' if self.is_correct else '✗'})"
+        return f"{self.order}-{self.option_text[:50]}... ({'✓' if self.is_correct else '✗'})"
 
+    def save(self, *args, **kwargs):
+        is_new = self._state.adding
+        with transaction.atomic():
+            if is_new:
+                if self.order is None:
+                    last_question_option_order=QuestionOption.objects.filter(question=self.question).aggregate(models.Max('order'))['order__max']
+                    self.order=1 if last_question_option_order is None else last_question_option_order+1
+                else:
+                    if QuestionOption.objects.filter(question=self.question,order=self.order).exists():
+                        QuestionOption.objects.filter(question=self.question,order__gte=self.order).update(order=models.F('order')+1)
+
+            else:
+                old_order=QuestionOption.objects.get(pk=self.pk).order
+                if self.order != old_order:
+                    if self.order < old_order:
+                        QuestionOption.objects.filter(
+                            question=self.question,
+                            order__gte=self.order,
+                            order__lt=old_order
+                        ).update(order=models.F('order') + 1)
+
+                    else:
+                        QuestionOption.objects.filter(
+                            question=self.question,
+                            order__lte=self.order,
+                            order__gt=old_order
+                        ).update(order=models.F('order') - 1)
+        
+        super().save(*args, **kwargs)
 
 class StudentAssessmentAttempt(models.Model):
     """Student's attempt at an assessment"""
