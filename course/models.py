@@ -79,7 +79,28 @@ class CourseEnrollment(models.Model):
     is_completed = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     progress = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
+    last_activity = models.DateTimeField(blank=True, null=True)
     
+    def calc_progress(self):
+        completed_lessons = StudentLessonProgress.objects.filter(
+        student=self.student,
+        lesson__module__course=self.course,
+        is_completed=True).count()
+        
+        total_lessons = Lesson.objects.filter(
+        module__course=self.course,
+        is_published=True).count()
+        
+        if total_lessons == 0:
+            progress = 0
+        else:
+            progress = (completed_lessons / total_lessons) * 100
+        
+        self.progress = round(progress, 2)
+        self.is_completed = (self.progress == 100)
+        self.last_activity = timezone.now()
+        self.save(update_fields=['progress','is_completed','last_activity'])
+        return self.progress
     class Meta:
         unique_together = ('student', 'course')  
         indexes = [
@@ -391,7 +412,7 @@ class StudentLessonProgress(models.Model):
     class Meta:
         unique_together = ('student', 'lesson') 
         
-    
+        
 class Rating(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='ratings')

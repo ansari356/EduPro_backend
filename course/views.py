@@ -9,7 +9,7 @@ from userAuth.models import User, StudentProfile
 from .models import CourseCategory, Course, CourseEnrollment,Lesson,CourseModule , Coupon, ModuleEnrollment, Rating,CouponUsage,StudentLessonProgress
 from .serializer import (CourseCategorySerializer,CourseCategoryCreateSerializer, CourseSerializer,
  CourseCreateSerializer,CouponCreateSerializer,CourseModuleListSerializer,LessonDetailSerializer,
-LessonCreateUpdateSerializer,CourseModuleDetailSerializer,CourseModuleCreateSerializer,
+LessonCreateUpdateSerializer,CourseModuleDetailSerializer,CourseModuleCreateSerializer,CourseEnrollmentDetailSerializer,
 CourseModuleUpdateSerializer,
 CouponSerializer,
 CourseEnrollmentCreateSerializer,CouesEnrollmentSerializer, ModuleEnrollmentSerializer, ModuleEnrollmentCreateSerializer ,
@@ -310,7 +310,36 @@ class CourseEnrollmentDeletAPIView(generics.DestroyAPIView):
 
         return enrollment
     
+class CourseEnrollmentDetailView(generics.RetrieveAPIView):
+    queryset = CourseEnrollment.objects.all()
+    serializer_class = CourseEnrollmentDetailSerializer
+    lookup_field = "id" 
 
+
+class CourseEnrollmentsPagination(PageNumberPagination):
+    page_size = 5
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+class TeacherCourseEnrollmentsView(generics.ListAPIView):
+    serializer_class = CourseEnrollmentDetailSerializer
+    permission_classes = [permissions.IsAuthenticated,IsTeacher,IsCourseOwner]
+    pagination_class = CourseEnrollmentsPagination  
+    PageNumberPagination.page_size = 5
+    
+    def get_queryset(self):
+        course_id=self.kwargs.get('course_id')
+        user=self.request.user
+        
+        try:
+            course = Course.objects.get(id=course_id)
+        except Course.DoesNotExist:
+            raise PermissionDenied("this course doesn't exist")
+        
+        if course.teacher.user != user:
+            raise PermissionDenied("You are not allowed to view the data for this course.")
+        
+        return CourseEnrollment.objects.filter(course=course)
     
 
 class CoursesFilterSerachAPIView(generics.ListAPIView):

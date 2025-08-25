@@ -7,7 +7,7 @@ from assessments import views as assessments_views
 
 urlpatterns = [
      # Password Reset
-   path('password-reset/request/', RequestPasswordResetView.as_view(), name='password_reset_request'),
+    path('password-reset/request/', RequestPasswordResetView.as_view(), name='password_reset_request'),
     path('password-reset/verify/', VerifyOTPView.as_view(), name='password_reset_verify'),
     path('password-reset/confirm/', ResetPasswordView.as_view(), name='password_reset_confirm'),
      
@@ -58,6 +58,7 @@ urlpatterns = [
     path('course/course-enrollment/',course_views.CourseEnrollmentAPIView.as_view(),name='course-enrollmnebt'),
     path('course/course-enrollment-list/<teacher_username>',course_views.CourseEnrollmentListAPIView.as_view(),name='course-enrollmnebt-list'),
     path('course/course-enrollment-delete/<course_id>/<enrollment_id>',course_views.CourseEnrollmentDeletAPIView.as_view(),name='course-enrollmnebt-delete'),
+    path("teacher/courses/<uuid:course_id>/enrollments/",course_views.TeacherCourseEnrollmentsView.as_view(),name="teacher-course-enrollments"),
     path('course/course-search-filter/',course_views.CoursesFilterSerachAPIView.as_view(),name='course-search-filter'),
     path('course/module-enrollment/',course_views.ModuleEnrollmentAPIView.as_view(),name='module-enrollment'),
     path('course/private-deatils/<course_id>',course_views.courselistteacher.as_view(),name='module-enrollment-list'),

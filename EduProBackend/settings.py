@@ -243,5 +243,5 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 EMAIL_HOST_USER = "karem123ahmed45@gmail.com"
-EMAIL_HOST_PASSWORD = "aphw ztxa snae rdbt"  # App Password 
+EMAIL_HOST_PASSWORD = ""  # App Password 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

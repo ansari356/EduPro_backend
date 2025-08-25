@@ -30,7 +30,7 @@ class CouponAdmin(admin.ModelAdmin):
 admin.site.register(Coupon, CouponAdmin)
 
 class CourseEnrollmentAdmin(admin.ModelAdmin):
-    list_display = ('id','student', 'course', 'status',  'enrollment_date','ended_date')
+    list_display = ('id','student', 'course', 'status',  'enrollment_date','ended_date','progress','is_completed','last_activity')
     list_filter = ('status',)
     search_fields = ('student',)
     raw_id_fields = ('student', 'course')
