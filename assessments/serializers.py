@@ -450,12 +450,13 @@ class StudentAssessmentAttemptDetailSerializer(serializers.ModelSerializer):
 class StudentAssessmentAttemptListSerializer(serializers.ModelSerializer):
     assessment_title = serializers.CharField(source='assessment.title', read_only=True)
     assessment_type = serializers.CharField(source='assessment.assessment_type', read_only=True)
+    student_name=serializers.CharField(source='student.user.username')
     related_to = serializers.SerializerMethodField()
     
     class Meta:
         model = StudentAssessmentAttempt
         fields = [
-            'id', 'assessment_title', 'assessment_type', 'related_to',
+            'id', 'assessment_title','student_name', 'assessment_type', 'related_to',
             'attempt_number', 'status', 'started_at', 'ended_at',
             'time_taken', 'score', 'percentage', 'is_passed'
         ]

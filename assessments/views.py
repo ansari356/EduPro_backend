@@ -5,10 +5,11 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import get_object_or_404
 from django.db.models import Q, Count, Avg
 from django.db import models
-from userAuth.models import TeacherProfile
+from userAuth.models import TeacherProfile,StudentProfile,User
 from django.utils import timezone
 from assessments.serializers import AssessmentRetrieveSerializer
 from course.models import Course
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from course.permissions import IsStudent,IsTeacher
 from .permissions import (IsStudentEnrolledAndAssessmentAvailable,CanSubmitAttempt,IsTeacherAndAssessmentOwner,
@@ -447,12 +448,37 @@ class TeacherGradeAnswerView(generics.UpdateAPIView):
         return answer
 
 
+# pagination
+class TeacherAttemptsPagination(PageNumberPagination):
+    page_size = 10  
+    page_size_query_param = 'page_size' 
+    max_page_size = 100
+# Teacher Student's Attemps
+class TeacherStudentsAttempts(generics.ListAPIView):
+    serializer_class = StudentAssessmentAttemptListSerializer
+    permission_classes = [IsAuthenticated, IsTeacherAndAssessmentOwner]
+    pagination_class = TeacherAttemptsPagination
+    
+    def get_queryset(self):
+        teacher = self.request.user.teacher_profile
+        assessment_id = self.kwargs.get('assessment_id')
+        
+        assessment=get_object_or_404(Assessment,id=assessment_id)
+        if assessment.teacher != teacher:
+            raise PermissionDenied("You don't have access !")
+        attempts = StudentAssessmentAttempt.objects.filter(
+            assessment_id=assessment_id,
+            assessment__teacher=teacher
+        )
+        
+        student_username = self.kwargs.get('student_username') or self.request.query_params.get('student_username')
 
-
-
-
-
-
+        if student_username:
+            student = get_object_or_404(User, username=student_username)
+            attempts = attempts.filter(student=student.student_profile)
+        
+        return attempts
+    
 
 
 
