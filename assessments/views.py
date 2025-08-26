@@ -463,6 +463,9 @@ class TeacherStudentsAttempts(generics.ListAPIView):
         teacher = self.request.user.teacher_profile
         assessment_id = self.kwargs.get('assessment_id')
         
+        assessment=get_object_or_404(Assessment,id=assessment_id)
+        if assessment.teacher != teacher:
+            raise PermissionDenied("You don't have access !")
         attempts = StudentAssessmentAttempt.objects.filter(
             assessment_id=assessment_id,
             assessment__teacher=teacher
