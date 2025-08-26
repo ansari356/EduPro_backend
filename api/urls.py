@@ -12,7 +12,6 @@ urlpatterns = [
     path('password-reset/confirm/', ResetPasswordView.as_view(), name='password_reset_confirm'),
      
      
-    path('course/create-vdocipher-upload-credentials/', course_views.VdoCipherUploadCredentialAPIView.as_view(), name='create-vdocipher-upload-credentials'),
     # Rating endpoints
     
     path('change-password/', user_views.ChangePasswordAPIView.as_view(), name='change-password'),
@@ -174,7 +173,6 @@ urlpatterns = [
     # Teacher Grading Endpoints
     
     # all questions that need to manual grading
-    # additional filters (assessment_id,assessment_type,question_type)
     path('teacher/grading/pending/', 
          assessments_views.TeacherPendingGradingListView.as_view(), 
          name='teacher-pending-grading-list'),
