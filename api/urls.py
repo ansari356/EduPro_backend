@@ -127,6 +127,18 @@ urlpatterns = [
     path('teacher/questions/options/<uuid:option_id>/', 
          assessments_views.TeacherQuestionOptionRetrieveUpdateDestroyView.as_view(), 
          name='teacher-question-option-detail'),
+    # all attemps of specific assessment
+    path(
+        "teacher/assessments/<uuid:assessment_id>/attempts/",
+        assessments_views.TeacherStudentsAttempts.as_view(),
+        name="teacher-assessment-attempts"
+    ),
+    # all attemps of specific assessment about specific student
+    path(
+        "teacher/assessments/<uuid:assessment_id>/attempts/<str:student_username>/",
+        assessments_views.TeacherStudentsAttempts.as_view(),
+        name="teacher-assessment-student-attempts"
+    ),
     
     # student assessments
     path('student/assessments/<str:teacher_username>/', 
