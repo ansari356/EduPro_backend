@@ -8,6 +8,7 @@ from django.utils import timezone
 from .utilis import genrate_coupon_code , genrate_otp
 from datetime import timedelta
 import uuid
+from .tasks import upload_video_to_vdocipher_task
 import os
 from django.core.files.storage import default_storage
 import shutil
@@ -418,23 +419,37 @@ class LessonDetailSerializer(serializers.ModelSerializer):
 
 
 class LessonCreateUpdateSerializer(serializers.ModelSerializer):
+    video = serializers.FileField(write_only=True)
     class Meta:
         model = Lesson
         fields = [
             'title', 'description', 'order',
             'is_published', 'is_free', 'duration', 'video_id',
-            'document', 'thumbnail', 'module'
+            'video', 'document', 'thumbnail', 'module'
         ]
-        read_only_fields=['id', 'duration', 'module']
-        extra_kwargs = {
-            'video_id': {'required': True}
-        }
+        read_only_fields=['id','video_id', 'duration','module']
         
+    # validate_duration
+    
     # validate_order
     def validate_order(self, value):
         if value and value <= 0:
             raise serializers.ValidationError("lesson order must be greater than 0")
         return value
+    
+    # validate_video
+    def validate_video(self, value):
+        # 1 GB limit
+        if value.size > 1024 * 1024 * 1024:
+            raise serializers.ValidationError("Video file size cannot exceed 1 GB.")
+        
+        allowed_extensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm']
+        ext = os.path.splitext(value.name)[1].lower()
+        if ext not in allowed_extensions:
+            raise serializers.ValidationError(f"Unsupported video file format. Allowed formats: {', '.join(allowed_extensions)}")
+            
+        return value
+   
     
     # validate_document
     def validate_document(self, value):
@@ -450,16 +465,76 @@ class LessonCreateUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Image larger than 2 MB")
         return value
     
+    def validate(self, attrs):
+        module = attrs.get('module') or (self.instance.module if self.instance else None)
+        order = attrs.get('order') or (self.instance.order if self.instance else None)
+
+        if module and order:
+            existing = Lesson.objects.filter(module=module, order=order)
+            if self.instance:
+                existing = existing.exclude(id=self.instance.id)
+            if existing.exists():
+                raise serializers.ValidationError("there is already lesson in this order")
+        return attrs
     
     
-    def create(self, validated_data):
+    # calculate duration after video saving
+    def create(self,validated_data):
+        video = validated_data.pop('video')
+        
+        # Create the lesson instance without the video_id first
         lesson = Lesson.objects.create(**validated_data)
+        
+        # Create a unique directory for the upload
+        upload_task_id = str(uuid.uuid4())
+        temp_dir_path = os.path.join('tmp', upload_task_id)
+        temp_video_path = os.path.join(temp_dir_path, video.name)
+
+        try:
+            # Save the video to the unique temporary directory
+            default_storage.save(temp_video_path, video)
+
+            # Trigger the asynchronous upload task with the directory path for cleanup
+            upload_video_to_vdocipher_task.delay(lesson.id, temp_video_path, video.name, temp_dir_path)
+        except Exception as e:
+            # If saving or task queuing fails, clean up the directory
+            if default_storage.exists(temp_dir_path):
+                full_temp_dir_path = default_storage.path(temp_dir_path)
+                shutil.rmtree(full_temp_dir_path)
+            # Re-raise the exception to ensure the transaction fails
+            raise e
+        
         return lesson
     
+    
+    # manipulate video in update
     def update(self, instance, validated_data):
+        video = validated_data.pop('video', None)
+        
+        # Update other fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        instance.save()
+        
+        if video:
+            # If a new video is uploaded, trigger the async task
+            instance.video_processing_status = Lesson.VideoProcessingStatus.PRE_UPLOAD
+            instance.video_id = None  # Reset video_id
+            instance.save()
+
+            # Create a unique directory for the upload
+            upload_task_id = str(uuid.uuid4())
+            temp_dir_path = os.path.join('tmp', upload_task_id)
+            temp_video_path = os.path.join(temp_dir_path, video.name)
+
+            # Save the video to the unique temporary directory
+            default_storage.save(temp_video_path, video)
+
+            # Trigger the asynchronous upload task with the directory path for cleanup
+            upload_video_to_vdocipher_task.delay(instance.id, temp_video_path, video.name, temp_dir_path)
+        else:
+            # If no new video, just save the other changes
+            instance.save()
+            
         return instance
 
     
@@ -510,7 +585,7 @@ class CourseModuleDetailSerializer(serializers.ModelSerializer):
 class CourseModuleCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CourseModule
-        fields = [ 'title', 'description', 'order','is_published','is_free','price']
+        fields = [ 'title', 'description', 'order','image']
     
     def validate_title(self, value):
         if not value.strip():
@@ -548,7 +623,3 @@ class CourseModuleUpdateSerializer(serializers.ModelSerializer):
 
 class EarningSerializer(serializers.Serializer):
     revenue = serializers.DecimalField(max_digits=10, decimal_places=2)
-
-
-class VdoCipherUploadCredentialSerializer(serializers.Serializer):
-    title = serializers.CharField(max_length=255)
