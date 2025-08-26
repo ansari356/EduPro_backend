@@ -139,6 +139,17 @@ urlpatterns = [
         assessments_views.TeacherStudentsAttempts.as_view(),
         name="teacher-assessment-student-attempts"
     ),
+    path("teacher/assessments/attempts/<str:student_username>/",
+         assessments_views.AllStudentAttemps.as_view(),
+         name="All-student-attempts"),
+    
+    path("teacher/assessments/<str:assessment_type>/attempts/<str:student_username>/",
+         assessments_views.AllStudentAttemps.as_view(),
+         name="All-student-attempts-bases-assessment-type"),
+    
+    path("teacher/courses/<uuid:course_id>/assessments/attempts/<str:student_username>/",
+     assessments_views.AllStudentAttemps.as_view(),
+     name="All-student-attempts-in-course"),
     
     # student assessments
     path('student/assessments/<str:teacher_username>/', 
