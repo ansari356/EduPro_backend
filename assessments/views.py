@@ -480,7 +480,37 @@ class TeacherStudentsAttempts(generics.ListAPIView):
         return attempts
     
 
+# pagination
+class AllStudentAttempsPagination(PageNumberPagination):
+    page_size = 10  
+    page_size_query_param = 'page_size' 
+    max_page_size = 100
+class AllStudentAttemps(generics.ListAPIView):
+    serializer_class = StudentAssessmentAttemptListSerializer
+    permission_classes = [IsAuthenticated, IsTeacherAndAssessmentOwner]
+    pagination_class = AllStudentAttempsPagination
+    
+    def get_queryset(self):
+        teacher = self.request.user.teacher_profile
+        student_username = self.kwargs.get('student_username') or self.request.query_params.get('student_username')
+        student=get_object_or_404(User,username=student_username)
+        
+        attempts=StudentAssessmentAttempt.objects.filter(student=student.student_profile,assessment__teacher=teacher) 
 
+        course_id=self.kwargs.get('course_id') or self.request.query_params.get('course_id')
+        
+        if course_id:
+            course=get_object_or_404(Course,id=course_id)
+            if course.teacher != teacher:
+                raise PermissionDenied('You must be teacher of this course to have an access !')
+            attempts=attempts.filter(
+                Q(assessment__course=course)|
+                Q(assessment__module__course=course)|
+                Q(assessment__lesson__module__course=course)
+            )
+        
+        assessment_type= self.kwargs.get('assessment_type') or self.request.query_params.get('assessment_type') 
+        if assessment_type:
+            attempts=attempts.filter(assessment__assessment_type=assessment_type)     
 
-
-
+        return attempts
