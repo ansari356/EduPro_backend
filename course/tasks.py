@@ -2,7 +2,7 @@ from celery import shared_task
 from django.utils import timezone
 from .models import Coupon , CourseEnrollment , Lesson
 from datetime import timedelta
-from .utilis import get_vdocipher_video_details, delete_vdocipher_video
+from .utilis import upload_to_vdocipher, get_vdocipher_video_details, delete_vdocipher_video
 
 import logging
 import os
@@ -38,6 +38,41 @@ def check_expired_enrollments():
 
 
 logger = logging.getLogger(__name__)
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def upload_video_to_vdocipher_task(self, lesson_id, temp_video_path, video_name, temp_dir_path):
+    from .models import Lesson
+    try:
+        lesson = Lesson.objects.get(id=lesson_id)
+        lesson.video_processing_status = Lesson.VideoProcessingStatus.QUEUED
+        lesson.save(update_fields=['video_processing_status'])
+        
+        full_video_path = default_storage.path(temp_video_path)
+        logger.info(f"Starting video upload for lesson {lesson_id} from path {full_video_path}")
+        video_id = upload_to_vdocipher(full_video_path, video_name, lesson.title)
+        
+        if video_id:
+            logger.info(f"Successfully initiated video upload for lesson {lesson_id}. VdoCipher video_id: {video_id}")
+            lesson.video_id = video_id
+            lesson.save(update_fields=['video_id'])
+        else:
+            logger.error(f"upload_to_vdocipher did not return a video_id for lesson {lesson_id}.")
+            lesson.video_processing_status = Lesson.VideoProcessingStatus.FAILED
+            lesson.save(update_fields=['video_processing_status'])
+        
+    except Lesson.DoesNotExist:
+        logger.error(f"Lesson with id {lesson_id} not found.")
+    except Exception as e:
+        logger.error(f"Error uploading video for lesson {lesson_id}: {e}")
+        lesson.video_processing_status = Lesson.VideoProcessingStatus.FAILED
+        lesson.save(update_fields=['video_processing_status'])
+        self.retry(exc=e)
+    finally:
+        # Clean up the entire unique temporary directory
+        if temp_dir_path and default_storage.exists(temp_dir_path):
+            full_temp_dir_path = default_storage.path(temp_dir_path)
+            shutil.rmtree(full_temp_dir_path)
+
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=300)
 def delete_video_from_vdocipher_task(self, video_id):
