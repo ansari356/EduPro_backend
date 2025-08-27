@@ -333,19 +333,35 @@ class TeacherCourseEnrollmentsView(generics.ListAPIView):
     pagination_class = CourseEnrollmentsPagination  
     PageNumberPagination.page_size = 5
     
+    
+    def get_permissions(self):
+        student_id = self.kwargs.get('student_id') or self.request.query_params.get('student_id')
+        
+        if student_id:
+            permission_classes = [permissions.IsAuthenticated, IsTeacher]
+        else:
+            permission_classes = [permissions.IsAuthenticated, IsTeacher, IsCourseOwner]
+        
+        return [permission() for permission in permission_classes]
+    
     def get_queryset(self):
         course_id=self.kwargs.get('course_id')
         user=self.request.user
+        teacher = user.teacher_profile
         
-        try:
-            course = Course.objects.get(id=course_id)
-        except Course.DoesNotExist:
-            raise PermissionDenied("this course doesn't exist")
+        course_id = self.kwargs.get('course_id') or self.request.query_params.get('course_id')
+        student_id = self.kwargs.get('student_id') or self.request.query_params.get('student_id')
         
-        if course.teacher.user != user:
-            raise PermissionDenied("You are not allowed to view the data for this course.")
+        enrollments = CourseEnrollment.objects.filter(course__teacher=teacher)
         
-        return CourseEnrollment.objects.filter(course=course)
+        if course_id:
+            enrollments = enrollments.filter(course__id=course_id)
+        
+        if student_id:
+            student = get_object_or_404(User, id=student_id)
+            enrollments = enrollments.filter(student=student.student_profile)
+            
+        return enrollments
     
 
 class CoursesFilterSerachAPIView(generics.ListAPIView):
