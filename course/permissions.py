@@ -18,12 +18,21 @@ class IsLessonAccessible(permissions.BasePermission):
         try:
             lesson = Lesson.objects.select_related('module__course__teacher').get(id=lesson_id)
             course = lesson.module.course
+            module = lesson.module
             user = request.user
 
             if user.user_type == User.userType.TEACHER and hasattr(user, 'teacher_profile') and course.teacher == user.teacher_profile:
                 return True
             
             if user.user_type == User.userType.STUDENT and hasattr(user, 'student_profile'):
+                
+                
+                if (course.is_free or course.price == 0) and course.is_published and lesson.is_published:
+                    return True
+                
+                if (module.is_free or module.price == 0) and module.is_published and lesson.is_published:
+                    return True
+                
                 has_full_access = CourseEnrollment.objects.filter(
                     student=user.student_profile,
                     course=course,
@@ -68,6 +77,13 @@ class IsModuleAccessible(permissions.BasePermission):
                 return True
 
             if user.user_type == User.userType.STUDENT and hasattr(user, 'student_profile'):
+                
+                if (course.is_free or course.price == 0) and course.is_published and module.is_published:
+                    return True
+                
+                if (module.is_free or module.price == 0) and module.is_published:
+                    return True
+                
                 has_full_access = CourseEnrollment.objects.filter(
                     student=user.student_profile,
                     course=course,

@@ -32,7 +32,7 @@ class CourseCategoryCreateSerializer(serializers.ModelSerializer):
             **validated_data,
         )
         return category
-        
+   
 
 class CourseSerializer(serializers.ModelSerializer):
     category = CourseCategorySerializer(read_only=True)
@@ -182,6 +182,7 @@ class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
             if existing_enrollment.access_type == CourseEnrollment.AccessType.FULL_ACCESS:
                 raise serializers.ValidationError({'student': 'Student already has full access to this course'})
             
+            
             if coupon_code:
                 with transaction.atomic():
                     if self._validate_and_use_coupon(coupon_code, course, student_profile):
@@ -193,6 +194,7 @@ class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({'student': 'Student already enrolled in this course with no access. Provide a coupon to upgrade.'})
 
         else:
+            
             if coupon_code:
                 with transaction.atomic():
                     if self._validate_and_use_coupon(coupon_code, course, student_profile):
@@ -236,7 +238,16 @@ class CourseEnrollmentDetailSerializer(serializers.ModelSerializer):
         
     
     
+class StudentEnrolledCourseSerializer(serializers.ModelSerializer):
+    course = CourseSerializer(read_only=True)
     
+    
+    class Meta:
+        model = CourseEnrollment
+        fields = [
+           'id', 'course','enrollment_date', 'progress', 'is_completed'
+        ]
+        read_only_fields = fields    
     
     
     
