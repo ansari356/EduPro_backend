@@ -11,7 +11,7 @@ from .serializer import (CourseCategorySerializer,CourseCategoryCreateSerializer
  CourseCreateSerializer,CouponCreateSerializer,CourseModuleListSerializer,LessonDetailSerializer,
 LessonCreateUpdateSerializer,CourseModuleDetailSerializer,CourseModuleCreateSerializer,CourseEnrollmentDetailSerializer,
 CourseModuleUpdateSerializer,
-CouponSerializer,
+CouponSerializer,StudentEnrolledCourseSerializer,
 CourseEnrollmentCreateSerializer,CouesEnrollmentSerializer, ModuleEnrollmentSerializer, ModuleEnrollmentCreateSerializer ,
  CourseRatingCreateSerializer,RatingListSerializer,EarningSerializer,CouponUsageSerialzier,
  CourseSerializerForTeacher,StudentLessonProgressSerilaizer
@@ -281,6 +281,12 @@ class CourseEnrollmentListAPIView(generics.ListAPIView):
          return Course.objects.none()
 
 
+class StudentEnrolledCoursesListView(generics.ListAPIView):
+    serializer_class = StudentEnrolledCourseSerializer
+    permission_classes = [permissions.IsAuthenticated,IsStudent]
+    
+    def get_queryset(self):
+        return CourseEnrollment.objects.filter(student=self.request.user.student_profile)
 
     
 
@@ -514,13 +520,31 @@ class LessonDetailView(generics.RetrieveAPIView):
         # if student is enrolled
         elif (user.user_type == User.userType.STUDENT and 
               hasattr(user, 'student_profile')):
+            
+            if ((course.is_free or course.price == 0) and 
+                course.is_published and lesson.is_published):
+                return lesson
+            
+            if ((module.is_free or module.price == 0) and 
+                module.is_published and lesson.is_published):
+                return lesson
+            
             enrollment = CourseEnrollment.objects.filter(
                 student=user.student_profile,
                 course=course,
                 is_active=True,
+                access_type=CourseEnrollment.AccessType.FULL_ACCESS,
             ).first()
             
-            if enrollment and lesson.is_published:
+            module_enrollment = ModuleEnrollment.objects.filter(
+                student=user.student_profile,
+                module=module,
+                is_active=True,
+                status=ModuleEnrollment.EnrollmentStatus.ACTIVE,
+            ).first()
+            
+            if ((enrollment and enrollment.access_type == CourseEnrollment.AccessType.FULL_ACCESS) or 
+                module_enrollment) and lesson.is_published:
                 return lesson
         
         raise PermissionDenied("You don't have permission to access this lesson.")
