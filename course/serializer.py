@@ -182,12 +182,6 @@ class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
             if existing_enrollment.access_type == CourseEnrollment.AccessType.FULL_ACCESS:
                 raise serializers.ValidationError({'student': 'Student already has full access to this course'})
             
-            if course.is_free or course.price == 0:
-                existing_enrollment.access_type = CourseEnrollment.AccessType.FULL_ACCESS
-                existing_enrollment.status = CourseEnrollment.EnrollmentStatus.ACTIVE
-                existing_enrollment.save(update_fields=['access_type', 'status'])
-                return existing_enrollment
-            
             
             if coupon_code:
                 with transaction.atomic():
@@ -200,15 +194,6 @@ class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({'student': 'Student already enrolled in this course with no access. Provide a coupon to upgrade.'})
 
         else:
-            if course.is_free or course.price == 0:
-                enrollment = CourseEnrollment.objects.create(
-                    student=student_profile,
-                    course=course,
-                    access_type=CourseEnrollment.AccessType.FULL_ACCESS,
-                    status=CourseEnrollment.EnrollmentStatus.ACTIVE,
-                    is_active=True
-                )
-                return enrollment
             
             if coupon_code:
                 with transaction.atomic():
