@@ -137,8 +137,42 @@ class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CourseEnrollment
         fields = ['course_id', 'coupon_code']
+    
+    def validate(self, data):
+        """
+        Validate enrollment data before processing
+        """
+        course_id = data.get('course_id')
+        coupon_code = data.get('coupon_code', '')
+        
+        if course_id:
+            try:
+                course = Course.objects.get(id=course_id)
+                
+                # For free courses, require "FREE" coupon code
+                if course.is_free and coupon_code != "FREE":
+                    raise serializers.ValidationError({
+                        'coupon_code': 'Free courses require "FREE" as the coupon code'
+                    })
+                
+                # For paid courses, require a valid coupon code
+                if not course.is_free and not coupon_code:
+                    raise serializers.ValidationError({
+                        'coupon_code': 'Paid courses require a valid coupon code'
+                    })
+                
+            except Course.DoesNotExist:
+                raise serializers.ValidationError({
+                    'course_id': 'Course not found'
+                })
+        
+        return data
 
     def _validate_and_use_coupon(self, coupon_code, course, student_profile):
+        # Special handling for free courses
+        if course.is_free and coupon_code == "FREE":
+            return "FREE_COURSE"
+        
         try:
             coupon = Coupon.objects.select_for_update().select_related('teacher').get(code=coupon_code)
             now = timezone.now()
@@ -175,20 +209,35 @@ class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
         coupon_code = validated_data.pop('coupon_code', None)
         student_profile = user.student_profile
         course = get_object_or_404(Course, id=course_id)
+        
+        # Debug logging
+        print(f"🔍 Enrollment Debug: Course {course.title} (ID: {course.id})")
+        print(f"🔍 Is Free: {course.is_free}")
+        print(f"🔍 Coupon Code: {coupon_code}")
+        print(f"🔍 Student: {student_profile.user.username}")
 
         existing_enrollment = CourseEnrollment.objects.filter(student=student_profile, course=course).first()
 
         if existing_enrollment:
+            print(f"🔍 Existing Enrollment Found: {existing_enrollment.id}")
+            print(f"🔍 Current Access Type: {existing_enrollment.access_type}")
+            print(f"🔍 Current Status: {existing_enrollment.status}")
             if existing_enrollment.access_type == CourseEnrollment.AccessType.FULL_ACCESS:
                 raise serializers.ValidationError({'student': 'Student already has full access to this course'})
             
             
             if coupon_code:
                 with transaction.atomic():
-                    if self._validate_and_use_coupon(coupon_code, course, student_profile):
+                    coupon_validation_result = self._validate_and_use_coupon(coupon_code, course, student_profile)
+                    print(f"🔍 Coupon Validation Result: {coupon_validation_result}")
+                    if coupon_validation_result == "FREE_COURSE" or coupon_validation_result:
                         existing_enrollment.access_type = CourseEnrollment.AccessType.FULL_ACCESS
                         existing_enrollment.status = CourseEnrollment.EnrollmentStatus.COMPLETED
                         existing_enrollment.save(update_fields=['access_type', 'status'])
+                        print(f"🔍 Existing Enrollment Updated: {existing_enrollment.id}")
+                        print(f"🔍 New Access Type: {existing_enrollment.access_type}")
+                        print(f"🔍 New Status: {existing_enrollment.status}")
+                        print(f"🔍 Returning Existing Enrollment: {existing_enrollment.id}")
                         return existing_enrollment
             else:
                 raise serializers.ValidationError({'student': 'Student already enrolled in this course with no access. Provide a coupon to upgrade.'})
@@ -197,7 +246,9 @@ class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
             
             if coupon_code:
                 with transaction.atomic():
-                    if self._validate_and_use_coupon(coupon_code, course, student_profile):
+                    coupon_validation_result = self._validate_and_use_coupon(coupon_code, course, student_profile)
+                    print(f"🔍 New Enrollment Coupon Validation Result: {coupon_validation_result}")
+                    if coupon_validation_result == "FREE_COURSE" or coupon_validation_result:
                         enrollment = CourseEnrollment.objects.create(
                             student=student_profile,
                             course=course,
@@ -205,8 +256,14 @@ class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
                             status=CourseEnrollment.EnrollmentStatus.COMPLETED,
                             is_active=True
                         )
-                        course.total_revenue+=course.price
-                        course.save(update_fields=['total_revenue'])
+                        # Only add revenue for paid courses
+                        if not course.is_free:
+                            course.total_revenue += course.price
+                            course.save(update_fields=['total_revenue'])
+                        
+                        print(f"🔍 Enrollment Created Successfully: {enrollment.id}")
+                        print(f"🔍 Access Type: {enrollment.access_type}")
+                        print(f"🔍 Status: {enrollment.status}")
                         return enrollment
             else:
                 enrollment = CourseEnrollment.objects.create(
@@ -216,7 +273,11 @@ class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
                     status=CourseEnrollment.EnrollmentStatus.PENDING,
                     is_active=True
                 )
+                print(f"🔍 No-Access Enrollment Created: {enrollment.id}")
+                print(f"🔍 Access Type: {enrollment.access_type}")
+                print(f"🔍 Status: {enrollment.status}")
                 return enrollment
+        
         return existing_enrollment
 
 
@@ -270,14 +331,22 @@ class RatingListSerializer(serializers.ModelSerializer):
 
 class CourseRatingCreateSerializer(serializers.ModelSerializer):
     rating = serializers.IntegerField(min_value=1, max_value=5)
+    comment = serializers.CharField(required=True, allow_blank=False, max_length=500)
+    
     class Meta:
         model = Rating
         fields =['rating', 'comment']
         
     def validate_comment(self, value):
-        if len(value) < 3 or len(value) > 500:
+        # Comments are now required
+        if not value or not value.strip():
+            raise serializers.ValidationError("Comment is required and cannot be empty.")
+        
+        # Validate length
+        if len(value.strip()) < 3 or len(value.strip()) > 500:
             raise serializers.ValidationError("Comment must be between 3 and 500 characters.")
-        return value
+        
+        return value.strip()
     
     def create(self, validated_data):
         user = self.context['request'].user
